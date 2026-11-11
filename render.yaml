@@ -1,0 +1,25 @@
+# ====================================================================
+# Render Blueprint Specification for PeerLink
+# Docs: https://render.com/docs/blueprint-spec
+# ====================================================================
+
+services:
+  - type: web
+    name: peerlink
+    runtime: node
+    plan: free
+    region: oregon # Choose: oregon (US West), ohio (US East), frankfurt (EU), or singapore (Asia)
+    buildCommand: npm run install:all && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true # Render will automatically generate a cryptographically secure 256-bit string
+      - key: MONGODB_URI
+        sync: false # Set this in the Render dashboard to your MongoDB Atlas connection string
+      - key: CLIENT_DIST_PATH
+        value: ../client/dist

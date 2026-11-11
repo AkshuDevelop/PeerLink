@@ -1,0 +1,145 @@
+/*
+ * ============================================================
+ * FILE PURPOSE:
+ *   Global CSS for PeerLink's React client.
+ *   Includes Tailwind CSS directives, the full "Kinetic Block"
+ *   custom utility classes, and global body/typography rules
+ *   that precisely match code.html Lines 36–88.
+ *
+ * ARCHITECTURAL LAYER:
+ *   Frontend UI — Global Stylesheet
+ *
+ * CONNECTED MODULES:
+ *   - Imported by: client/src/main.tsx
+ *   - Used by: All React components via Tailwind class names
+ * ============================================================
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global Base Styles ──────────────────────────────────────── */
+@layer base {
+  body {
+    background-color: #F4F1EA; /* cream */
+    color: #0E0E10;             /* ink */
+    /* tabular-nums: ensures all numbers are fixed-width for the
+       "mechanical instrument readout" aesthetic of telemetry counters */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* ── Kinetic Block Custom Utility Classes ────────────────────── */
+@layer utilities {
+  /* .outline-wordmark — Used for the PEERLINK hero logotype.
+     The fill is cobalt but the -webkit-text-stroke creates a cream
+     outline BEHIND the fill, giving the stenciled poster-print look.
+     paint-order: stroke fill ensures the stroke renders under the fill. */
+  .outline-wordmark {
+    fill: #1F3BFF;
+    -webkit-text-stroke: 4px #F4F1EA;
+    paint-order: stroke fill;
+  }
+
+  /* .outline-wordmark-dark — Ink-on-cream version for use on cream bands. */
+  .outline-wordmark-dark {
+    fill: #0E0E10;
+    -webkit-text-stroke: 3px #F4F1EA;
+    paint-order: stroke fill;
+  }
+
+  /* .avatar-hatch — Diagonal stripe overlay for avatar blocks.
+     Creates the screen-printed texture effect. */
+  .avatar-hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0 2px,
+      transparent 2px 10px
+    );
+  }
+
+  /* .hard-shadow-coral — Non-blurred offset shadow in coral color,
+     used for primary action buttons and incoming request cards. */
+  .hard-shadow-coral {
+    box-shadow: 3px 3px 0px #0E0E10;
+  }
+
+  /* .hard-shadow-ink — 4px offset ink shadow for elevated cards.
+     This is the ONLY form of "elevation" in the Kinetic Block system —
+     no blur, no opacity, just a hard stacked-plate offset. */
+  .hard-shadow-ink {
+    box-shadow: 4px 4px 0px #0E0E10;
+  }
+
+  /* .wire-dashes-active — Animated dashes for the transfer progress bar. */
+  .wire-dashes-active {
+    stroke-dasharray: 8 6;
+    animation: wireDashes 1.2s linear infinite;
+  }
+}
+
+/* ── Keyframe Animations ─────────────────────────────────────── */
+
+/* spinDisc — Used by .animate-disc-spin (24s) and .animate-disc-fast (6s).
+   The slow spin is for the landing page status disc.
+   The fast spin is for the active transfer page progress disc. */
+@keyframes spinDisc {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* wireDashes — Stroke offset animation for the transfer progress bar overlay. */
+@keyframes wireDashes {
+  to { stroke-dashoffset: -32; }
+}
+
+/* animate-disc-spin — Full 24s rotation cycle (landing page disc) */
+.animate-disc-spin {
+  animation: spinDisc 24s linear infinite;
+  transform-origin: center center;
+}
+
+/* animate-disc-fast — Fast 6s rotation cycle (active transfer disc) */
+.animate-disc-fast {
+  animation: spinDisc 6s linear infinite;
+  transform-origin: center center;
+}
+
+/* ── Accessibility: Respect reduced motion preference ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-disc-spin,
+  .animate-disc-fast,
+  .wire-dashes-active {
+    animation: none !important;
+  }
+}
+
+/* ── Focus styles — Replace browser default with cobalt ring ──── */
+@layer base {
+  :focus-visible {
+    outline: 2px solid #1F3BFF;
+    outline-offset: 2px;
+  }
+
+  /* Remove focus ring for mouse users (only show for keyboard) */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Issue 4: Perfect vertical and horizontal centering across all pill buttons and links */
+  button,
+  a.rounded-full,
+  .btn-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1;
+    vertical-align: middle;
+  }
+}

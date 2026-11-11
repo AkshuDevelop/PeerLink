@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PEERLINK // Direct WebRTC Mesh // Zero Intermediary</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          cobalt: "#1F3BFF",
+          cream: "#F4F1EA",
+          ink: "#0E0E10",
+          sand: "#E3DCCB",
+          coral: "#FF7A59",
+          "cream-muted": "rgba(244, 241, 234, 0.72)",
+          "ink-muted": "#55534E",
+          "cream-hairline": "rgba(244, 241, 234, 0.16)",
+          "ink-hairline": "rgba(14, 14, 16, 0.14)"
+        },
+        fontFamily: {
+          sans: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+          mono: ['"Space Mono"', 'monospace']
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body {
+    background-color: #F4F1EA;
+    color: #0E0E10;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+  }
+  .outline-wordmark {
+    fill: #1F3BFF;
+    -webkit-text-stroke: 4px #F4F1EA;
+    paint-order: stroke fill;
+  }
+  .outline-wordmark-dark {
+    fill: #0E0E10;
+    -webkit-text-stroke: 3px #F4F1EA;
+    paint-order: stroke fill;
+  }
+  .avatar-hatch {
+    background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 10px);
+  }
+  .hard-shadow-coral {
+    box-shadow: 3px 3px 0px #0E0E10;
+  }
+  .hard-shadow-ink {
+    box-shadow: 4px 4px 0px #0E0E10;
+  }
+  @keyframes spinDisc {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-disc-spin {
+    animation: spinDisc 24s linear infinite;
+    transform-origin: center center;
+  }
+  .animate-disc-fast {
+    animation: spinDisc 6s linear infinite;
+    transform-origin: center center;
+  }
+  @keyframes wireDashes {
+    to { stroke-dashoffset: -32; }
+  }
+  .wire-dashes-active {
+    stroke-dasharray: 8 6;
+    animation: wireDashes 1.2s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-disc-spin, .animate-disc-fast, .wire-dashes-active {
+      animation: none !important;
+    }
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col font-sans bg-cream text-ink">
+
+<!-- TOP BAR: Persistent Cobalt Band (72px) -->
+<header class="h-[72px] bg-cobalt text-cream border-b-2 border-ink sticky top-0 z-40" id="top-bar">
+  <div class="max-w-[1240px] mx-auto px-4 sm:px-8 h-full flex justify-between items-center">
+    <!-- Left: Wordmark & Tag -->
+    <div class="flex items-center gap-6">
+      <a href="#/" class="flex items-center gap-2 group">
+        <span class="text-[18px] font-[800] tracking-[-0.02em] uppercase text-cream">PEERLINK</span>
+        <span class="bg-coral text-ink text-[10px] font-mono font-[700] px-1.5 py-0.5 border border-ink tracking-widest hidden sm:inline-block">V0.9.4-P2P</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-[13px] font-mono font-[700] uppercase tracking-wider pl-4 border-l border-cream/20" id="top-nav-links">
+        <a href="#/dashboard" data-nav="TRANSFERS" class="text-cream/80 hover:text-cream pb-1 transition-colors">TRANSFERS</a>
+        <a href="#/peers" data-nav="PEERS" class="text-cream/80 hover:text-cream pb-1 transition-colors">PEERS</a>
+        <a href="#/transfer/TR-9014" data-nav="TELEMETRY" class="text-cream/80 hover:text-cream pb-1 transition-colors">TELEMETRY</a>
+        <a href="#/logs" data-nav="LOGS" class="text-cream/80 hover:text-cream pb-1 transition-colors">LOGS</a>
+      </nav>
+    </div>
+
+    <!-- Right: Telemetry + Pills + Avatar -->
+    <div class="flex items-center gap-3">
+      <div class="hidden lg:flex items-center gap-4 text-[11px] font-mono font-[700] text-cream-muted pr-3 border-r border-cream/20">
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-cream">hub</span> STUN:LIVE</span>
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px] text-cream">sync</span> 0.00% LOSS</span>
+      </div>
+      <button onclick="App.showPairModal()" class="hidden sm:inline-flex items-center justify-center h-[38px] px-4 rounded-full border-2 border-cream text-cream text-[13px] font-[700] uppercase tracking-wider hover:bg-cream hover:text-cobalt">
+        PAIR CODE
+      </button>
+      <a href="#/peers/add" class="inline-flex items-center justify-center h-[38px] px-4 rounded-full border-2 border-ink bg-coral text-ink text-[13px] font-[700] uppercase tracking-wider hard-shadow-coral hover:bg-sand">
+        CONNECT PEER
+      </a>
+      <!-- Request Chip (22px square) -->
+      <a href="#/request/req-89" id="request-chip" class="w-[22px] h-[22px] bg-coral text-ink border border-ink text-[12px] font-[800] font-mono flex items-center justify-center" title="Pending Incoming Stream Requests">
+        1
+      </a>
+      <!-- 40px Avatar initials block -->
+      <a href="#/settings" class="w-[40px] h-[40px] bg-sand text-ink border-2 border-ink flex items-center justify-center font-mono font-[800] text-[15px] avatar-hatch hover:border-cream" title="Node PX Settings">
+        PX
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ROUTED VIEWPORT -->
+<main class="flex-grow flex flex-col w-full relative" id="router-viewport">
+  <!-- Dynamic views rendered via Hash Router -->
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-ink text-cream border-t-2 border-ink mt-auto">
+  <div class="max-w-[1240px] mx-auto px-4 sm:px-8 py-5 flex flex-col md:flex-row justify-between items-center gap-4 font-mono text-[12px]">
+    <div class="flex items-center gap-3">
+      <span class="font-[800] uppercase text-[15px] tracking-tight">PEERLINK</span>
+      <span class="text-sand/80">// DIRECT WEBRTC MESH // ZERO INTERMEDIARY</span>
+    </div>
+    <div class="flex flex-wrap gap-5 text-sand/80 uppercase tracking-widest font-[700]">
+      <a href="#/" class="hover:text-coral underline decoration-2">PROTOCOL SPEC</a>
+      <a href="#/dashboard" class="hover:text-coral underline decoration-2">STUN STATUS</a>
+      <a href="#/logs" class="hover:text-coral underline decoration-2">SHA-256 INTEGRITY</a>
+      <button onclick="App.disconnectMesh()" class="text-coral hover:underline decoration-2 uppercase font-[700]">DISCONNECT ALL</button>
+    </div>
+  </div>
+</footer>
+
+<!-- PREVIEW ROUTE SWITCHER BAR -->
+<aside class="fixed bottom-2 left-1/2 -translate-x-1/2 z-50 bg-ink/95 border-2 border-cream text-cream px-3 py-1.5 shadow-2xl flex items-center gap-1.5 text-[11px] font-mono overflow-x-auto whitespace-nowrap max-w-[96vw]">
+  <span class="text-coral font-[800] mr-1">ROUTES:</span>
+  <a href="#/" class="hover:text-coral px-1">Landing</a>·
+  <a href="#/dashboard" class="hover:text-coral px-1">Dashboard</a>·
+  <a href="#/peers" class="hover:text-coral px-1">Peers</a>·
+  <a href="#/peers/add" class="hover:text-coral px-1">Add Peer</a>·
+  <a href="#/send" class="hover:text-coral px-1">Send</a>·
+  <a href="#/transfer/TR-9014" class="hover:text-coral px-1">Active Transfer</a>·
+  <a href="#/transfer/TR-9014/result" class="hover:text-coral px-1">Result</a>·
+  <a href="#/transfer/TR-9014/details" class="hover:text-coral px-1">Details</a>·
+  <a href="#/logs" class="hover:text-coral px-1">Logs</a>·
+  <a href="#/settings" class="hover:text-coral px-1">Settings</a>·
+  <a href="#/signup" class="hover:text-coral px-1">Sign Up</a>·
+  <a href="#/signin" class="hover:text-coral px-1">Sign In</a>·
+  <a href="#/request/req-89" class="hover:text-coral px-1">Modal Req</a>
+</aside>
+
+<!-- MODAL: INCOMING TRANSFER REQUEST OVERLAY (#/request/:id) -->
+<div id="request-modal" class="fixed inset-0 bg-ink/80 z-50 hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-[540px] bg-ink border-2 border-cream p-8 text-cream flex flex-col gap-6">
+    <div class="flex items-center justify-between border-b border-cream-hairline pb-4">
+      <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-coral">// INCOMING WEBRTC TRANSFER</span>
+      <span class="text-[11px] font-mono text-cream-muted uppercase">RFC 8489 STUN</span>
+    </div>
+    <div class="flex items-start gap-4">
+      <div class="w-14 h-14 bg-coral text-ink border-2 border-ink flex items-center justify-center font-mono font-[800] text-[20px] shrink-0 avatar-hatch">
+        KF
+      </div>
+      <div>
+        <span class="text-[11px] font-mono text-cream-muted uppercase block">DISPATCHER NODE</span>
+        <h3 class="text-[22px] font-[800] uppercase tracking-tight text-cream">KOFI (@kofi_station)</h3>
+        <p class="text-[12px] font-mono text-sand">STUN Candidate RTT: 14ms</p>
+      </div>
+    </div>
+    <!-- File Payload Card -->
+    <div class="border-2 border-cream bg-cream/5 p-4 flex flex-col gap-2 font-mono">
+      <div class="text-[11px] text-cream-muted uppercase">PAYLOAD:</div>
+      <div class="text-[18px] font-[800] uppercase truncate text-cream" id="req-filename">MASTER_STATION_AUDIO_v4.WAV</div>
+      <div class="grid grid-cols-2 gap-2 text-[12px] text-sand pt-1 border-t border-cream-hairline">
+        <span>SIZE: <strong>1.42 GB</strong></span>
+        <span>SLICES: <strong>2,910 @ 512KB</strong></span>
+        <span>TYPE: <strong>audio/x-wav</strong></span>
+        <span>CIPHER: <strong class="text-coral">SHA-256 E2E</strong></span>
+      </div>
+    </div>
+    <!-- Risky Caution Note -->
+    <div class="border border-cream/30 p-3 text-[12px] font-mono text-cream-muted flex items-start gap-2">
+      <span class="material-symbols-outlined text-[16px] text-coral mt-0.5">shield</span>
+      <span>This file type streams directly into memory. Open only if you trust the peer. Zero malware cloud scanning.</span>
+    </div>
+    <div class="flex items-center gap-3 pt-2">
+      <button onclick="App.acceptRequest()" class="flex-1 h-[48px] rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[14px] uppercase tracking-wider hard-shadow-coral hover:bg-sand">
+        ACCEPT & STREAM
+      </button>
+      <button onclick="App.rejectRequest()" class="h-[48px] px-6 rounded-full border-2 border-cream text-cream font-mono font-[700] text-[14px] uppercase hover:bg-cream hover:text-ink">
+        REJECT
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PAIR CODE -->
+<div id="pair-modal" class="fixed inset-0 bg-ink/80 z-50 hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-[420px] bg-cream border-2 border-ink p-6 flex flex-col gap-4 text-ink hard-shadow-ink">
+    <div class="flex justify-between items-center border-b-2 border-ink pb-2">
+      <span class="font-[800] uppercase text-[16px]">INSTANT PAIR PIN</span>
+      <button onclick="App.closePairModal()" class="font-mono font-bold text-[18px]">✕</button>
+    </div>
+    <p class="text-[13px] font-mono text-ink-muted">Enter 6-digit ephemeral PIN for rendezvous negotiation:</p>
+    <input type="text" id="pin-input" maxlength="6" placeholder="849201" class="h-12 border-2 border-ink bg-sand px-4 font-mono font-[800] text-[20px] uppercase text-center focus:border-cobalt focus:ring-0"/>
+    <div class="flex gap-2 pt-2">
+      <button onclick="App.submitPairPin()" class="flex-1 h-11 rounded-full border-2 border-ink bg-cobalt text-cream font-mono font-[700] text-[13px] uppercase hover:bg-sand hover:text-ink">
+        CONNECT PIN
+      </button>
+      <button onclick="App.closePairModal()" class="px-5 h-11 rounded-full border-2 border-ink bg-sand font-mono font-[700] text-[13px] uppercase">
+        CANCEL
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="system-toast" class="fixed bottom-14 right-6 z-50 hidden bg-ink text-cream border-2 border-sand p-4 font-mono text-[13px] font-[700] flex items-center gap-3 shadow-2xl">
+  <span class="w-2.5 h-2.5 bg-coral inline-block"></span>
+  <span id="toast-text">SYSTEM NOTIFICATION</span>
+</div>
+
+<!-- SCRIPT: APPLICATION STORE & ROUTER -->
+<script>
+  const PeerLinkStore = {
+    user: { id: "NODE-77-DELTA", handle: "OPERATOR_ALPHA", avatar: "PX", stunIp: "185.12.14.99:3478", loss: "0.00%" },
+    peers: [
+      { id: "peer-kofi", name: "KOFI", handle: "kofi_station", status: "ONLINE", latency: "14ms", avatar: "KF", color: "bg-coral text-ink" },
+      { id: "peer-orion", name: "ORION-09", handle: "orion_audio", status: "ONLINE", latency: "22ms", avatar: "O9", color: "bg-cobalt text-cream" },
+      { id: "peer-atlas", name: "ATLAS-VAULT", handle: "atlas_vault", status: "BUSY", latency: "48ms", avatar: "AV", color: "bg-sand text-ink" },
+      { id: "peer-echo", name: "ECHO-NODE", handle: "echo_node", status: "OFFLINE", latency: "--", avatar: "EC", color: "bg-ink text-cream" }
+    ],
+    pendingIncoming: [
+      { id: "req-89", name: "KOFI", handle: "kofi_station", filename: "MASTER_STATION_AUDIO_v4.WAV", size: "1.42 GB", time: "2M AGO", avatar: "KF" }
+    ],
+    pendingOutgoing: [
+      { id: "out-12", recipient: "ORION-09", handle: "orion_audio", filename: "PROMO_STILLS_RAW.TAR", size: "840 MB", status: "STAGED", time: "5M AGO" }
+    ],
+    blockedList: [
+      { id: "blk-01", name: "SPAM-BOT-31", handle: "malicious_echo", avatar: "SB", reason: "Unsolicited SDP packets" }
+    ],
+    transfersHistory: [
+      { id: "TR-9014", target: "KOFI", dir: "OUTGOING", file: "PROJECT_STEMS_REMIX_02.ZIP", size: "2.10 GB", status: "COMPLETED", hash: "9a2f7c03881efb04", speed: "42.8 MB/S", time: "2026-05-10 14:22", chunks: 4200 },
+      { id: "TR-9013", target: "ORION-09", dir: "INCOMING", file: "CINEMA_ROUGH_CUT_4K.MOV", size: "6.85 GB", status: "COMPLETED", hash: "3e4bfa99211c42de", speed: "58.2 MB/S", time: "2026-05-09 19:04", chunks: 13700 },
+      { id: "TR-9012", target: "ATLAS-VAULT", dir: "OUTGOING", file: "DATABASE_COLD_BACKUP.SQLITE", size: "450 MB", status: "COMPLETED", hash: "fa01bb90c10243e8", speed: "31.0 MB/S", time: "2026-05-08 11:15", chunks: 900 },
+      { id: "TR-9011", target: "ECHO-NODE", dir: "INCOMING", file: "PATCH_NOTES_RAW.MARKDOWN", size: "12 KB", status: "COMPLETED", hash: "55bc81200df12401", speed: "2.4 MB/S", time: "2026-05-08 09:30", chunks: 1 }
+    ],
+    sim: {
+      running: true,
+      timer: null,
+      id: "TR-9014",
+      target: "KOFI",
+      filename: "PROJECT_STEMS_REMIX_02.ZIP",
+      percent: 42,
+      transferredMB: 882,
+      totalMB: 2100,
+      speed: 42.8,
+      eta: "00:28s",
+      state: "TRANSFERRING",
+      sha256: "9a2f7c03881efb0411a7c5520a23277cb54131584b4231b57fa0d1e345869482"
+    }
+  };
+
+  const Views = {
+    // 1. LANDING (#/)
+    landing() {
+      return `
+        <!-- Cobalt Hero -->
+        <section class="w-full bg-cobalt text-cream border-b-2 border-ink py-12 md:py-20 relative overflow-hidden">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end border-b-2 border-cream pb-6 mb-8 gap-4">
+              <div>
+                <span class="text-[13px] font-mono font-[700] uppercase tracking-widest text-cream-muted block mb-1">
+                  DIRECT BROWSER TO BROWSER · NO CLOUD STORAGE
+                </span>
+                <h1 class="text-[64px] sm:text-[96px] md:text-[140px] font-[800] uppercase tracking-[-0.06em] leading-[0.82] select-none">
+                  PEER<span class="outline-wordmark">LINK</span>
+                </h1>
+              </div>
+              <div class="flex flex-col items-start md:items-end font-mono">
+                <span class="text-[16px] font-[800] uppercase text-sand">NO SERVERS. NO INTERMEDIARY. ZERO PERSISTENCE.</span>
+                <span class="text-[11px] text-cream-muted uppercase tracking-widest">SCTP / ICE / DTLS 1.3 / RAW CHUNK PROTOCOL</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div class="lg:col-span-7 flex flex-col gap-6">
+                <p class="text-[20px] md:text-[24px] font-[800] uppercase tracking-tight leading-tight text-cream">
+                  TRANSMIT MULTI-GIGABYTE ASSETS DIRECTLY BROWSER-TO-BROWSER AT MAXIMUM WIRE SPEED.
+                </p>
+                <p class="text-[16px] text-sand max-w-[48ch] leading-relaxed">
+                  Find a contact by their exact handle, add them with their consent, and send files straight from your browser to theirs. Files never touch a central storage bucket or staging proxy.
+                </p>
+                <div class="flex flex-wrap items-center gap-4 pt-2">
+                  <a href="#/dashboard" class="h-[48px] px-8 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[14px] uppercase tracking-wider inline-flex items-center hard-shadow-coral hover:bg-sand">
+                    INITIALIZE NODE
+                  </a>
+                  <a href="#/transfer/TR-9014" class="h-[48px] px-8 rounded-full border-2 border-cream bg-transparent text-cream font-mono font-[700] text-[14px] uppercase tracking-wider inline-flex items-center hover:bg-cream hover:text-cobalt">
+                    VIEW LIVE TELEMETRY
+                  </a>
+                </div>
+              </div>
+
+              <!-- Rotating SVG Status Disc -->
+              <div class="lg:col-span-5 flex justify-center lg:justify-end">
+                <div class="relative w-[168px] h-[168px] flex items-center justify-center">
+                  <div class="w-[168px] h-[168px] animate-disc-spin">
+                    <svg viewBox="0 0 200 200" class="w-full h-full fill-current text-cream">
+                      <path id="curve-landing" fill="transparent" d="M 100, 100 m -75, 0 a 75,75 0 1,1 150,0 a 75,75 0 1,1 -150,0" />
+                      <text class="text-[12px] font-[800] tracking-[0.14em] uppercase font-mono">
+                        <textPath xlink:href="#curve-landing" startOffset="0%">
+                          PEER TO PEER · END TO END · NO CLOUD ·
+                        </textPath>
+                      </text>
+                    </svg>
+                  </div>
+                  <div class="absolute w-[96px] h-[96px] rounded-full bg-cream border-2 border-ink flex flex-col items-center justify-center text-ink hard-shadow-ink">
+                    <span class="text-[10px] font-mono font-[700] text-cobalt uppercase">WEBRTC</span>
+                    <span class="text-[28px] font-[800] leading-none">↘</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Cream Specs Readout Grid -->
+        <section class="w-full bg-cream text-ink border-b-2 border-ink py-12 md:py-16">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8">
+            <div class="flex items-center justify-between border-b-2 border-ink pb-3 mb-8">
+              <h2 class="text-[20px] font-[800] uppercase font-mono tracking-tight">01 // SPECIFICATIONS & BENCHMARKS</h2>
+              <span class="text-[11px] font-mono uppercase bg-sand px-3 py-1 border border-ink font-[700]">LOCAL HARDWARE VERIFIED</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-2 border-ink bg-ink gap-[2px]">
+              <div class="bg-cream p-6 flex flex-col justify-between">
+                <div>
+                  <span class="text-[11px] font-mono text-ink-muted uppercase">CHANNEL PIPELINE</span>
+                  <h3 class="text-[44px] font-[800] uppercase mt-2 font-mono">SCTP</h3>
+                </div>
+                <p class="text-[13px] border-t-2 border-ink pt-3 mt-6">Direct ordered chunk transmission over UDP with reliable retransmission semantics.</p>
+              </div>
+              <div class="bg-cream p-6 flex flex-col justify-between">
+                <div>
+                  <span class="text-[11px] font-mono text-ink-muted uppercase">FILE LIMIT</span>
+                  <h3 class="text-[44px] font-[800] uppercase mt-2 font-mono">∞ GB</h3>
+                </div>
+                <p class="text-[13px] border-t-2 border-ink pt-3 mt-6">Zero file size capping. Sliced in 512KB ArrayBuffer chunks via the FileSystem API.</p>
+              </div>
+              <div class="bg-cream p-6 flex flex-col justify-between">
+                <div>
+                  <span class="text-[11px] font-mono text-ink-muted uppercase">SERVER LOGS</span>
+                  <h3 class="text-[44px] font-[800] uppercase mt-2 font-mono">0 BYTES</h3>
+                </div>
+                <p class="text-[13px] border-t-2 border-ink pt-3 mt-6">Signaling offers/answers vanish from memory immediately upon peer channel handshake.</p>
+              </div>
+              <div class="bg-sand p-6 flex flex-col justify-between">
+                <div>
+                  <span class="text-[11px] font-mono text-ink uppercase font-[700]">CHECKSUM SECURITY</span>
+                  <h3 class="text-[44px] font-[800] uppercase mt-2 font-mono">SHA-256</h3>
+                </div>
+                <p class="text-[13px] border-t-2 border-ink pt-3 mt-6 font-[600]">Client-side WebCrypto digest calculated in parallel with live pipe streaming.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Ink Mechanism Band -->
+        <section class="w-full bg-ink text-cream py-14 md:py-20 border-b-2 border-ink">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <div class="lg:col-span-7 flex flex-col gap-6">
+              <span class="text-[12px] font-mono text-coral uppercase tracking-widest font-[700]">MECHANISM // ARCHITECTURE</span>
+              <h2 class="text-[36px] md:text-[48px] font-[800] uppercase tracking-tight text-cream">HOW THE MESH STACK OPERATES</h2>
+              <div class="flex flex-col border-t-2 border-cream mt-2">
+                <div class="py-5 border-b border-cream-hairline flex items-start gap-4">
+                  <span class="text-[28px] font-[800] text-coral font-mono shrink-0">01</span>
+                  <div>
+                    <h4 class="text-[18px] font-[800] uppercase text-cream">STUN DISCOVERY &amp; ICE GATHERING</h4>
+                    <p class="text-[14px] text-sand mt-1">Both browsers ping an RFC 8489 STUN server solely to discover their reflexive public UDP IP/port candidates.</p>
+                  </div>
+                </div>
+                <div class="py-5 border-b border-cream-hairline flex items-start gap-4">
+                  <span class="text-[28px] font-[800] text-coral font-mono shrink-0">02</span>
+                  <div>
+                    <h4 class="text-[18px] font-[800] uppercase text-cream">EPHEMERAL SIGNALING EXCHANGE</h4>
+                    <p class="text-[14px] text-sand mt-1">Session Description Protocol (SDP) payloads are exchanged via temporary pin codes. Never written to persistent storage.</p>
+                  </div>
+                </div>
+                <div class="py-5 border-b border-cream-hairline flex items-start gap-4">
+                  <span class="text-[28px] font-[800] text-coral font-mono shrink-0">03</span>
+                  <div>
+                    <h4 class="text-[18px] font-[800] uppercase text-cream">DIRECT SCTP SOCKET OPENING</h4>
+                    <p class="text-[14px] text-sand mt-1">Signaling terminates. A direct end-to-end encrypted DTLS 1.3 socket bridges the machines at maximum link capacity.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Guarantee Card -->
+            <div class="lg:col-span-5 bg-cream text-ink p-8 border-2 border-cream flex flex-col justify-between hard-shadow-coral">
+              <div>
+                <div class="flex items-center justify-between border-b-2 border-ink pb-2 mb-4 font-mono">
+                  <span class="text-[12px] font-[800] uppercase">SOVEREIGNTY GUARANTEE</span>
+                  <span class="bg-coral px-2 py-0.5 text-[11px] font-[800] uppercase">ZERO RETENTION</span>
+                </div>
+                <h3 class="text-[26px] font-[800] uppercase tracking-tight mb-4">WHAT WE STORE ON OUR SERVERS:</h3>
+                <div class="space-y-3 font-mono text-[13px] font-[700]">
+                  <div class="flex items-center gap-2 text-ink">
+                    <span class="w-2.5 h-2.5 bg-coral inline-block"></span>
+                    <span>FILE METADATA / FILENAMES</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-ink">
+                    <span class="w-2.5 h-2.5 bg-coral inline-block"></span>
+                    <span>USER IP ADDRESS ARCHIVES</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-ink">
+                    <span class="w-2.5 h-2.5 bg-coral inline-block"></span>
+                    <span>TRANSMISSION PAYLOAD BYTES</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-ink">
+                    <span class="w-2.5 h-2.5 bg-coral inline-block"></span>
+                    <span>HASH IDENTIFIERS OR COOKIES</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-cobalt pt-2 border-t-2 border-ink">
+                    <span class="material-symbols-outlined text-[18px]">check</span>
+                    <span>100% IN-MEMORY CLIENT BROWSER EXECUTION</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-8 pt-4 border-t-2 border-ink">
+                <a href="#/dashboard" class="w-full h-[46px] rounded-full border-2 border-ink bg-cobalt text-cream font-mono font-[700] text-[13px] uppercase tracking-wider flex items-center justify-center hover:bg-sand hover:text-ink">
+                  LAUNCH DASHBOARD WORKBENCH
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 2. DASHBOARD (#/dashboard)
+    dashboard() {
+      return `
+        <!-- Hero: Cobalt Band -->
+        <section class="w-full bg-cobalt text-cream border-b-2 border-ink py-10">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+              <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-coral block mb-1">// NODE ONLINE</span>
+              <h1 class="text-[48px] sm:text-[72px] font-[800] uppercase tracking-[-0.04em] leading-none">
+                WELCOME, <span class="outline-wordmark">${PeerLinkStore.user.handle}</span>
+              </h1>
+              <p class="text-[14px] font-mono text-sand mt-3">STUN REFLEXIVE: ${PeerLinkStore.user.stunIp} · DIRECT SCTP INITIALIZED</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <a href="#/send" class="h-[46px] px-6 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[13px] uppercase tracking-wider hard-shadow-coral hover:bg-sand">
+                SEND A FILE
+              </a>
+              <a href="#/peers/add" class="h-[46px] px-6 rounded-full border-2 border-cream text-cream font-mono font-[700] text-[13px] uppercase tracking-wider hover:bg-cream hover:text-cobalt">
+                ADD A PEER
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Body: Cream / Sand -->
+        <section class="w-full bg-cream text-ink py-12">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left: 01 // RECENT TRANSMISSIONS -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+              <div class="flex items-center justify-between border-b-2 border-ink pb-2">
+                <h2 class="text-[18px] font-mono font-[800] uppercase">01 // RECENT TRANSMISSIONS</h2>
+                <a href="#/logs" class="text-[12px] font-mono font-[700] uppercase underline hover:text-cobalt">FULL LOGS</a>
+              </div>
+              <div class="border-2 border-ink bg-cream overflow-x-auto">
+                <table class="w-full text-left border-collapse font-mono text-[13px]">
+                  <thead>
+                    <tr class="bg-sand border-b-2 border-ink text-[11px] font-[800] uppercase">
+                      <th class="p-3">SESSION</th>
+                      <th class="p-3">PAYLOAD</th>
+                      <th class="p-3">PEER</th>
+                      <th class="p-3">SIZE</th>
+                      <th class="p-3">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y-2 divide-ink">
+                    ${PeerLinkStore.transfersHistory.map(r => `
+                      <tr class="hover:bg-sand/40">
+                        <td class="p-3 font-[700]"><a href="#/transfer/${r.id}/details" class="underline hover:text-cobalt">${r.dir === 'OUTGOING' ? '↗' : '↘'} ${r.id}</a></td>
+                        <td class="p-3 font-[700] truncate max-w-[180px]">${r.file}</td>
+                        <td class="p-3 font-[700] uppercase">${r.target}</td>
+                        <td class="p-3">${r.size}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 border border-ink text-[11px] font-[800] bg-cream">${r.status}</span></td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right Rail: 02 // PENDING REQUESTS & 03 // PEERS -->
+            <div class="lg:col-span-5 flex flex-col gap-8">
+              <!-- 02 Pending Requests -->
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b-2 border-ink pb-2">
+                  <h2 class="text-[18px] font-mono font-[800] uppercase">02 // PENDING REQUESTS (${PeerLinkStore.pendingIncoming.length})</h2>
+                  <a href="#/peers" class="text-[12px] font-mono font-[700] uppercase underline">ROSTER</a>
+                </div>
+                ${PeerLinkStore.pendingIncoming.map(item => `
+                  <div class="border-2 border-ink bg-sand p-5 flex flex-col gap-3 hard-shadow-coral">
+                    <div class="flex items-start justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 bg-coral text-ink border-2 border-ink flex items-center justify-center font-mono font-[800] text-[16px] avatar-hatch">
+                          ${item.avatar}
+                        </div>
+                        <div>
+                          <div class="font-[800] text-[16px] uppercase">${item.name}</div>
+                          <div class="text-[11px] font-mono text-ink-muted">@${item.handle} · ${item.time}</div>
+                        </div>
+                      </div>
+                      <span class="bg-coral px-2 py-0.5 border border-ink text-[10px] font-mono font-[800]">OFFER READY</span>
+                    </div>
+                    <div class="bg-cream border border-ink p-2 font-mono text-[12px]">
+                      <div class="font-[700] truncate">${item.filename}</div>
+                      <div class="text-[11px] text-ink-muted">${item.size} · DTLS 1.3 ARMED</div>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                      <a href="#/request/${item.id}" class="flex-1 h-10 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[12px] uppercase flex items-center justify-center hard-shadow-coral hover:bg-cream">
+                        ACCEPT
+                      </a>
+                      <button onclick="App.dismissRequest('${item.id}')" class="px-4 h-10 rounded-full border-2 border-ink bg-cream font-mono font-[700] text-[12px] uppercase hover:bg-sand">
+                        REJECT
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+
+              <!-- 03 Peers -->
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b-2 border-ink pb-2">
+                  <h2 class="text-[18px] font-mono font-[800] uppercase">03 // PEERS (${PeerLinkStore.peers.length})</h2>
+                  <a href="#/peers/add" class="text-[12px] font-mono font-[700] uppercase underline hover:text-cobalt">+ ADD PEER</a>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  ${PeerLinkStore.peers.map(p => `
+                    <div class="border-2 border-ink bg-cream p-3 flex flex-col justify-between gap-3">
+                      <div class="flex items-start justify-between">
+                        <div class="w-10 h-10 border-2 border-ink ${p.color} flex items-center justify-center font-mono font-[800] text-[14px] avatar-hatch">
+                          ${p.avatar}
+                        </div>
+                        <span class="w-2.5 h-2.5 ${p.status === 'ONLINE' ? 'bg-cobalt' : 'bg-sand'} border border-ink" title="${p.status}"></span>
+                      </div>
+                      <div>
+                        <div class="font-[800] uppercase text-[14px] truncate">${p.name}</div>
+                        <div class="text-[10px] font-mono text-ink-muted">@${p.handle} · ${p.latency}</div>
+                      </div>
+                      <a href="#/send?peer=${p.id}" class="h-8 rounded-full border border-ink bg-sand text-[11px] font-mono font-[700] uppercase flex items-center justify-center hover:bg-cobalt hover:text-cream">
+                        SEND ↗
+                      </a>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 3. PEERS (#/peers)
+    peers(tab = 'peers') {
+      return `
+        <!-- Ink Band Header -->
+        <section class="w-full bg-ink text-cream border-b-2 border-ink py-10">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+              <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-coral">// CONSENT-GATED ROSTER</span>
+              <h2 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight text-cream leading-none mt-1">PEER DIRECTORY</h2>
+            </div>
+            <a href="#/peers/add" class="h-[46px] px-6 rounded-full border-2 border-cream bg-coral text-ink font-mono font-[700] text-[13px] uppercase hard-shadow-coral hover:bg-sand">
+              + CONNECT REMOTE PEER
+            </a>
+          </div>
+        </section>
+
+        <!-- Tabs & Lists -->
+        <section class="w-full bg-cream text-ink py-10 flex-grow">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-col gap-6">
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-2 border-b-2 border-ink pb-2" role="tablist">
+              <button onclick="App.renderPeersTab('peers')" class="px-5 py-2 font-mono font-[700] text-[13px] uppercase border-2 border-ink ${tab === 'peers' ? 'bg-ink text-cream' : 'bg-sand hover:bg-cream'}">
+                PEERS (${PeerLinkStore.peers.length})
+              </button>
+              <button onclick="App.renderPeersTab('incoming')" class="px-5 py-2 font-mono font-[700] text-[13px] uppercase border-2 border-ink ${tab === 'incoming' ? 'bg-ink text-cream' : 'bg-sand hover:bg-cream'}">
+                INCOMING (${PeerLinkStore.pendingIncoming.length})
+              </button>
+              <button onclick="App.renderPeersTab('outgoing')" class="px-5 py-2 font-mono font-[700] text-[13px] uppercase border-2 border-ink ${tab === 'outgoing' ? 'bg-ink text-cream' : 'bg-sand hover:bg-cream'}">
+                OUTGOING (${PeerLinkStore.pendingOutgoing.length})
+              </button>
+              <button onclick="App.renderPeersTab('blocked')" class="px-5 py-2 font-mono font-[700] text-[13px] uppercase border-2 border-ink ${tab === 'blocked' ? 'bg-ink text-cream' : 'bg-sand hover:bg-cream'}">
+                BLOCKED (${PeerLinkStore.blockedList.length})
+              </button>
+            </div>
+
+            <div id="peers-tab-body">
+              ${tab === 'peers' ? `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  ${PeerLinkStore.peers.map(p => `
+                    <div class="border-2 border-ink bg-cream p-5 flex flex-col justify-between gap-5 hard-shadow-ink">
+                      <div class="flex items-start justify-between">
+                        <div class="w-14 h-14 border-2 border-ink ${p.color} flex items-center justify-center font-mono font-[800] text-[18px] avatar-hatch">
+                          ${p.avatar}
+                        </div>
+                        <span class="px-2 py-0.5 border border-ink text-[11px] font-mono font-[800] ${p.status === 'ONLINE' ? 'bg-cobalt text-cream' : 'bg-sand text-ink'}">
+                          ${p.status}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 class="text-[18px] font-[800] uppercase truncate">${p.name}</h3>
+                        <div class="text-[11px] font-mono text-ink-muted">@${p.handle} · ${p.latency}</div>
+                      </div>
+                      <div class="flex gap-2 pt-2 border-t-2 border-ink">
+                        <a href="#/send?peer=${p.id}" class="flex-1 h-9 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[12px] uppercase flex items-center justify-center hard-shadow-coral hover:bg-sand">
+                          SEND
+                        </a>
+                        <button onclick="App.blockPeer('${p.id}')" class="px-3 h-9 rounded-full border-2 border-ink bg-sand font-mono font-[700] text-[11px] uppercase hover:bg-ink hover:text-cream">
+                          BLOCK
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : tab === 'incoming' ? `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  ${PeerLinkStore.pendingIncoming.map(item => `
+                    <div class="border-2 border-ink bg-sand p-6 flex flex-col justify-between gap-4 hard-shadow-coral">
+                      <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                          <div class="w-12 h-12 bg-coral border-2 border-ink flex items-center justify-center font-mono font-[800] text-[16px] avatar-hatch">
+                            ${item.avatar}
+                          </div>
+                          <div>
+                            <div class="text-[18px] font-[800] uppercase">${item.name}</div>
+                            <div class="text-[11px] font-mono text-ink-muted">@${item.handle} · ${item.time}</div>
+                          </div>
+                        </div>
+                        <span class="bg-coral px-2 py-0.5 border border-ink text-[11px] font-mono font-[800]">OFFER READY</span>
+                      </div>
+                      <div class="p-3 bg-cream border border-ink font-mono text-[12px]">
+                        <div class="font-[700]">${item.filename}</div>
+                        <div class="text-[11px] text-ink-muted">${item.size} · SHA-256 ARMED</div>
+                      </div>
+                      <div class="flex gap-2">
+                        <a href="#/request/${item.id}" class="flex-1 h-10 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[12px] uppercase flex items-center justify-center hard-shadow-coral hover:bg-sand">
+                          ACCEPT & STREAM
+                        </a>
+                        <button onclick="App.dismissRequest('${item.id}')" class="px-4 h-10 rounded-full border-2 border-ink bg-cream font-mono font-[700] text-[12px] uppercase">
+                          REJECT
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : tab === 'outgoing' ? `
+                <div class="border-2 border-ink bg-cream divide-y-2 divide-ink font-mono">
+                  ${PeerLinkStore.pendingOutgoing.map(o => `
+                    <div class="p-4 flex items-center justify-between">
+                      <div>
+                        <span class="text-[11px] text-ink-muted uppercase">OUTGOING TO: ${o.recipient} (@${o.handle})</span>
+                        <div class="font-[800] text-[16px] uppercase">${o.filename} (${o.size})</div>
+                      </div>
+                      <button onclick="App.cancelOutgoing('${o.id}')" class="h-9 px-4 rounded-full border-2 border-ink bg-sand text-[11px] font-[700] uppercase hover:bg-ink hover:text-cream">
+                        CANCEL OFFER
+                      </button>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div class="border-2 border-ink bg-cream divide-y-2 divide-ink font-mono">
+                  ${PeerLinkStore.blockedList.map(b => `
+                    <div class="p-4 flex items-center justify-between">
+                      <div>
+                        <div class="font-[800] text-[15px] uppercase">${b.name} (@${b.handle})</div>
+                        <div class="text-[11px] text-ink-muted">REASON: ${b.reason}</div>
+                      </div>
+                      <button onclick="App.unblockPeer('${b.id}')" class="h-9 px-4 rounded-full border-2 border-ink bg-sand text-[11px] font-[700] uppercase hover:bg-cobalt hover:text-cream">
+                        UNBLOCK
+                      </button>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 4. ADD PEER (#/peers/add)
+    addPeer() {
+      return `
+        <section class="w-full bg-cream text-ink py-14 flex-grow">
+          <div class="max-w-[760px] mx-auto px-4 sm:px-8 flex flex-col gap-6">
+            <div class="border-b-2 border-ink pb-4">
+              <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-ink-muted">// EXACT HANDLE ONLY · NO DIRECTORY</span>
+              <h2 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight leading-none mt-1">ADD A PEER</h2>
+              <p class="text-[14px] font-mono text-ink-muted mt-2">
+                PeerLink does not run a public directory to prevent enumeration. Input the exact handle or public candidate fingerprint.
+              </p>
+            </div>
+
+            <div class="border-2 border-ink bg-cream p-8 hard-shadow-ink flex flex-col gap-6 font-mono">
+              <div>
+                <label class="text-[12px] font-[800] uppercase block mb-2">ENTER AN EXACT HANDLE:</label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="text" id="add-peer-handle-input" placeholder="e.g. kofi_station OR orion_audio" class="flex-1 h-12 border-2 border-ink bg-sand px-4 font-mono font-[700] uppercase focus:border-cobalt focus:ring-0">
+                  <button onclick="App.lookupHandle()" class="h-12 px-8 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[13px] uppercase tracking-wider hard-shadow-coral hover:bg-sand">
+                    RESOLVE
+                  </button>
+                </div>
+              </div>
+
+              <!-- Result Card -->
+              <div id="lookup-result-container" class="hidden border-2 border-ink bg-sand p-5 flex flex-col gap-4">
+                <!-- Rendered dynamically -->
+              </div>
+
+              <div class="border-t-2 border-ink pt-6 flex flex-col gap-3 text-[12px] text-ink-muted">
+                <span class="font-[800] uppercase text-ink">ALTERNATIVE: 6-DIGIT INSTANT PIN</span>
+                <p>If direct STUN reflex fails over strict symmetric NAT, connect directly with an out-of-band numeric PIN:</p>
+                <button onclick="App.showPairModal()" class="self-start h-10 px-5 rounded-full border-2 border-ink bg-sand text-ink font-[700] uppercase hover:bg-cream">
+                  ENTER 6-DIGIT PIN
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 5. SEND (#/send)
+    send(preselectedId = '') {
+      return `
+        <!-- Cobalt Header -->
+        <section class="w-full bg-cobalt text-cream border-b-2 border-ink py-10">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8">
+            <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-coral">// METADATA FIRST · PAYLOAD AFTER CONSENT</span>
+            <h1 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight text-cream leading-none mt-1">SEND A FILE</h1>
+          </div>
+        </section>
+
+        <!-- Body -->
+        <section class="w-full bg-cream text-ink py-12 flex-grow">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left: Choose a Peer -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+              <h3 class="text-[14px] font-mono font-[800] uppercase">1. CHOOSE A PEER</h3>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                ${PeerLinkStore.peers.map(p => `
+                  <div onclick="App.selectSendPeer('${p.id}')" id="peer-card-${p.id}" class="peer-select-card cursor-pointer border-2 border-ink bg-cream p-4 flex flex-col justify-between gap-3 hover:bg-sand ${preselectedId === p.id || (!preselectedId && p.id === 'peer-kofi') ? 'ring-4 ring-cobalt' : ''}">
+                    <div class="w-12 h-12 border-2 border-ink ${p.color} flex items-center justify-center font-mono font-[800] text-[16px] avatar-hatch">
+                      ${p.avatar}
+                    </div>
+                    <div>
+                      <div class="font-[800] text-[15px] uppercase truncate">${p.name}</div>
+                      <div class="text-[11px] font-mono text-ink-muted">@${p.handle}</div>
+                    </div>
+                    <span class="text-[10px] font-mono font-[800] px-1.5 py-0.5 border border-ink bg-sand self-start uppercase">${p.status}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Right: Dropzone / Card -->
+            <div class="lg:col-span-5 flex flex-col gap-4">
+              <h3 class="text-[14px] font-mono font-[800] uppercase">2. PAYLOAD STAGING</h3>
+              <div id="send-dropzone" onclick="document.getElementById('send-file-input').click()" class="border-2 border-ink bg-sand p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-cream transition-colors min-h-[220px]">
+                <span class="material-symbols-outlined text-[48px] text-cobalt mb-2">upload_file</span>
+                <span class="text-[16px] font-[800] uppercase font-mono">DROP A FILE OR SELECT ONE</span>
+                <span class="text-[12px] font-mono text-ink-muted mt-1">Unlimited gigabyte payload · Client-sliced</span>
+                <input type="file" id="send-file-input" class="hidden" onchange="App.handleSendFile(event)">
+              </div>
+
+              <!-- Staged File Card (Visible after selection) -->
+              <div id="staged-card" class="border-2 border-ink bg-cream p-5 font-mono flex flex-col gap-3 hard-shadow-coral">
+                <div class="flex justify-between items-center border-b border-ink pb-2">
+                  <span class="text-[11px] font-[800] uppercase text-cobalt">STAGED AUDIT</span>
+                  <span class="text-[10px] bg-coral px-2 py-0.5 border border-ink font-[800] uppercase">DTLS ARMED</span>
+                </div>
+                <div>
+                  <span class="text-[11px] text-ink-muted uppercase block">FILE:</span>
+                  <strong id="staged-name" class="text-[16px] font-[800] uppercase truncate block">PROJECT_STEMS_REMIX_02.ZIP</strong>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[12px]">
+                  <div>SIZE: <strong id="staged-size">2.10 GB</strong></div>
+                  <div>SLICES: <strong id="staged-slices">4,200 @ 512KB</strong></div>
+                </div>
+                <div class="flex gap-2 pt-2 border-t border-ink">
+                  <button onclick="document.getElementById('send-file-input').click()" class="h-8 px-4 rounded-full border border-ink bg-sand text-[11px] font-[700] uppercase hover:bg-cream">REPLACE</button>
+                </div>
+              </div>
+
+              <button onclick="App.dispatchTransferRequest()" class="w-full h-12 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[13px] uppercase tracking-wider hard-shadow-coral hover:bg-sand">
+                TRANSMIT REQUEST
+              </button>
+              <p class="text-[11px] font-mono text-ink-muted text-center">
+                We send the details first. Bytes move only after the remote peer accepts.
+              </p>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 6. ACTIVE TRANSFER (#/transfer/:id)
+    transfer(id) {
+      const sim = PeerLinkStore.sim;
+      return `
+        <!-- Ink Band Full Height -->
+        <section class="w-full bg-ink text-cream py-10 flex-grow flex flex-col justify-between">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 w-full flex flex-col gap-8">
+            <!-- Header bar with Direction & Cancel -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-cream-hairline pb-4 gap-4">
+              <div class="flex items-center gap-3">
+                <span class="bg-coral text-ink px-2 py-1 text-[11px] font-mono font-[800] uppercase border border-ink">SENDING</span>
+                <span class="text-[14px] font-mono font-[700] uppercase tracking-widest text-sand">
+                  YOU ↘ ${sim.target}
+                </span>
+                <span class="px-2 py-0.5 border border-cream/30 text-[10px] font-mono uppercase text-cream-muted">DIRECT SCTP</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <a href="#/transfer/${id}/details" class="h-9 px-4 rounded-full border-2 border-cream text-cream text-[11px] font-mono font-[700] uppercase hover:bg-cream hover:text-ink">
+                  DETAILS
+                </a>
+                <button onclick="App.cancelTransfer('${id}')" class="h-9 px-4 rounded-full border-2 border-cream bg-coral text-ink text-[11px] font-mono font-[700] uppercase hard-shadow-coral hover:bg-sand">
+                  CANCEL TRANSFER
+                </button>
+              </div>
+            </div>
+
+            <!-- Filename as the Anchor -->
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+              <div class="max-w-3xl">
+                <span class="text-[11px] font-mono text-cream-muted uppercase block">// TRANSMISSION PAYLOAD CONDUIT:</span>
+                <h1 class="text-[36px] sm:text-[56px] md:text-[72px] font-[800] uppercase tracking-[-0.04em] leading-[0.9] text-cream truncate" title="${sim.filename}">
+                  ${sim.filename}
+                </h1>
+              </div>
+
+              <!-- Rotating Status Disc -->
+              <div class="relative w-[140px] h-[140px] shrink-0 flex items-center justify-center">
+                <div class="w-[140px] h-[140px] animate-disc-fast">
+                  <svg viewBox="0 0 200 200" class="w-full h-full fill-current text-cobalt">
+                    <path id="curve-transfer" fill="transparent" d="M 100, 100 m -75, 0 a 75,75 0 1,1 150,0 a 75,75 0 1,1 -75,0" />
+                    <text class="text-[13px] font-[800] tracking-[0.14em] uppercase font-mono">
+                      <textPath xlink:href="#curve-transfer" startOffset="0%">
+                        DIRECT · PEER TO PEER · END TO END ·
+                      </textPath>
+                    </text>
+                  </svg>
+                </div>
+                <div class="absolute w-[80px] h-[80px] rounded-full bg-sand border-2 border-ink flex flex-col items-center justify-center text-ink text-center">
+                  <span id="transfer-disc-percent" class="text-[22px] font-[800] font-mono leading-none">
+                    ${sim.percent}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wire Progress Track (8px square, animated dashes) -->
+            <div class="flex flex-col gap-2 font-mono">
+              <div class="flex justify-between text-[12px] text-sand font-[700] uppercase">
+                <span id="transfer-live-state" aria-live="polite">STREAMING 512KB SLICES VIA SCTP</span>
+                <span id="transfer-bytes-label">${sim.transferredMB} MB / ${sim.totalMB} MB</span>
+              </div>
+              <div class="w-full h-[12px] border-2 border-cream bg-cream/10 p-[1px] relative overflow-hidden">
+                <div id="transfer-progress-bar" class="h-full bg-cobalt transition-all duration-200" style="width: ${sim.percent}%;">
+                  <!-- Dash overlay -->
+                  <div class="w-full h-full bg-[linear-gradient(90deg,transparent_50%,rgba(255,255,255,0.3)_50%)] bg-[length:12px_100%] animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4-Cell Telemetry Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 border-2 border-cream bg-cream gap-[2px] text-ink" role="timer" aria-label="Transfer telemetry">
+              <div class="bg-cream p-5">
+                <span class="text-[11px] font-mono text-ink-muted uppercase block">TRANSFERRED</span>
+                <div id="tel-transferred" class="text-[36px] font-[800] font-mono mt-1">${sim.transferredMB} MB</div>
+                <span class="text-[11px] font-mono text-ink-muted">OF ${sim.totalMB} MB</span>
+              </div>
+              <div class="bg-cream p-5">
+                <span class="text-[11px] font-mono text-ink-muted uppercase block">PERCENT</span>
+                <div id="tel-percent" class="text-[36px] font-[800] font-mono mt-1">${sim.percent}%</div>
+                <span class="text-[11px] font-mono text-ink-muted">SLICES OK</span>
+              </div>
+              <div class="bg-cream p-5">
+                <span class="text-[11px] font-mono text-ink-muted uppercase block">SPEED</span>
+                <div id="tel-speed" class="text-[36px] font-[800] font-mono text-cobalt mt-1">${sim.speed} MB/S</div>
+                <span class="text-[11px] font-mono text-ink-muted">PEAK: 58.4 MB/S</span>
+              </div>
+              <div class="bg-sand p-5">
+                <span class="text-[11px] font-mono text-ink-muted uppercase block">ETA</span>
+                <div id="tel-eta" class="text-[36px] font-[800] font-mono mt-1">${sim.eta}</div>
+                <span class="text-[11px] font-mono text-ink-muted">RELIABLE CONDUIT</span>
+              </div>
+            </div>
+
+            <div class="border border-cream/30 bg-cream/5 p-3 flex flex-col sm:flex-row justify-between items-center text-[12px] font-mono text-sand gap-2">
+              <span class="truncate">RUNNING SHA-256: <strong class="text-cream">${sim.sha256}</strong></span>
+              <button onclick="App.forceCompleteTransfer('${id}')" class="px-3 py-1 border border-cream text-cream text-[11px] font-[700] uppercase hover:bg-cream hover:text-ink shrink-0">
+                FAST-FORWARD COMPLETE
+              </button>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 7. RESULT (#/transfer/:id/result)
+    result(id, outcome = 'COMPLETE') {
+      const sim = PeerLinkStore.sim;
+      return `
+        <section class="w-full bg-cream text-ink py-12 flex-grow">
+          <div class="max-w-[880px] mx-auto px-4 sm:px-8 flex flex-col gap-6">
+            <div class="border-b-2 border-ink pb-4 flex justify-between items-end">
+              <div>
+                <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-ink-muted">// TRANSMISSION TERMINATED</span>
+                <h2 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight leading-none mt-1">
+                  TRANSMISSION ${outcome}
+                </h2>
+              </div>
+              <span class="px-3 py-1 border-2 border-ink ${outcome === 'COMPLETE' ? 'bg-coral text-ink' : 'bg-sand'} font-mono font-[800] uppercase text-[12px]">
+                STATUS: ${outcome}
+              </span>
+            </div>
+
+            <div class="border-2 border-ink bg-cream p-8 hard-shadow-ink flex flex-col gap-6">
+              <div class="flex items-center gap-4 border-b-2 border-ink pb-6">
+                <div class="w-16 h-16 bg-sand border-2 border-ink flex items-center justify-center font-mono font-[800] text-[24px]">
+                  ${outcome === 'COMPLETE' ? '✓' : '✕'}
+                </div>
+                <div>
+                  <h3 class="text-[22px] font-[800] uppercase truncate">${sim.filename}</h3>
+                  <div class="text-[12px] font-mono text-ink-muted">SESSION ID: ${id} · PEER: ${sim.target}</div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-[13px]">
+                <div class="border border-ink p-3 bg-sand/30">
+                  <span class="text-ink-muted text-[11px] block uppercase">PAYLOAD TOTAL</span>
+                  <strong>${sim.totalMB} MB (4,200 SLICES)</strong>
+                </div>
+                <div class="border border-ink p-3 bg-sand/30">
+                  <span class="text-ink-muted text-[11px] block uppercase">TRANSFER RATE</span>
+                  <strong>42.8 MB/S OVER WEBRTC</strong>
+                </div>
+                <div class="border border-ink p-3 bg-sand/30">
+                  <span class="text-ink-muted text-[11px] block uppercase">PROTOCOL CONDUIT</span>
+                  <strong>DTLS-SRTP v1.3 (AIRGAP)</strong>
+                </div>
+                <div class="border border-ink p-3 bg-sand/30">
+                  <span class="text-ink-muted text-[11px] block uppercase">PACKET LOSS</span>
+                  <strong>0 PACKETS (0.00% LOSS)</strong>
+                </div>
+              </div>
+
+              <!-- SHA-256 Digest Box -->
+              <div class="border-2 border-ink bg-sand p-4 font-mono">
+                <span class="text-[11px] font-[800] uppercase block text-cobalt">SHA-256 CRYPTOGRAPHIC INTEGRITY MATCH:</span>
+                <div class="text-[13px] font-[700] mt-1 break-all select-all">${sim.sha256}</div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-4 pt-4 border-t-2 border-ink">
+                <a href="#/send" class="h-11 px-8 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[13px] uppercase hard-shadow-coral hover:bg-sand">
+                  SEND ANOTHER
+                </a>
+                <a href="#/logs" class="h-11 px-6 rounded-full border-2 border-ink bg-sand font-mono font-[700] text-[13px] uppercase hover:bg-cream">
+                  OPEN IN LOGS
+                </a>
+                <a href="#/transfer/${id}/details" class="h-11 px-6 rounded-full border-2 border-ink bg-cream font-mono font-[700] text-[13px] uppercase hover:bg-sand ml-auto">
+                  INSPECT METADATA
+                </a>
+              </div>
+            </div>
+            <p class="text-[12px] font-mono text-ink-muted text-center">
+              We kept no copy. The file exists only where it was saved.
+            </p>
+          </div>
+        </section>
+      `;
+    },
+
+    // 8. DETAILS (#/transfer/:id/details)
+    details(id) {
+      const sim = PeerLinkStore.sim;
+      return `
+        <section class="w-full bg-cream text-ink py-12 flex-grow">
+          <div class="max-w-[880px] mx-auto px-4 sm:px-8 flex flex-col gap-6">
+            <div class="border-b-2 border-ink pb-4 flex justify-between items-end">
+              <div>
+                <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-ink-muted">// EXHAUSTIVE METADATA AUDIT</span>
+                <h2 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight leading-none mt-1">
+                  TRANSFER <span class="text-[28px] font-mono text-ink-muted">${id}</span>
+                </h2>
+              </div>
+              <a href="#/logs" class="text-[13px] font-mono font-[800] uppercase underline">BACK TO LOGS</a>
+            </div>
+
+            <div class="border-2 border-ink bg-cream p-8 hard-shadow-ink flex flex-col gap-6 font-mono text-[13px]">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <span class="text-ink-muted text-[11px] block uppercase">TRANSMISSION ID</span>
+                  <strong class="text-[18px] font-[800]">${id}</strong>
+                </div>
+                <div>
+                  <span class="text-ink-muted text-[11px] block uppercase">ESTABLISHED CONDUIT</span>
+                  <strong class="text-[18px] font-[800] text-cobalt">WebRTC SCTP / DTLS 1.3</strong>
+                </div>
+                <div>
+                  <span class="text-ink-muted text-[11px] block uppercase">DISPATCHER (LOCAL)</span>
+                  <strong class="text-[15px] font-[700]">${PeerLinkStore.user.id} (@${PeerLinkStore.user.handle})</strong>
+                </div>
+                <div>
+                  <span class="text-ink-muted text-[11px] block uppercase">RECIPIENT (REMOTE)</span>
+                  <strong class="text-[15px] font-[700]">${sim.target} (@kofi_station)</strong>
+                </div>
+              </div>
+
+              <!-- Side-by-side SHA comparison -->
+              <div class="border-2 border-ink bg-sand p-6 flex flex-col gap-4">
+                <span class="text-[15px] font-[800] uppercase">SIDE-BY-SIDE INTEGRITY ATTESTATION:</span>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px]">
+                  <div class="border border-ink bg-cream p-3">
+                    <span class="text-ink-muted uppercase block font-[700]">SENDER SHA-256:</span>
+                    <div class="font-[700] text-cobalt break-all mt-1">${sim.sha256}</div>
+                  </div>
+                  <div class="border border-ink bg-cream p-3">
+                    <span class="text-ink-muted uppercase block font-[700]">RECEIVER REASSEMBLED:</span>
+                    <div class="font-[700] text-cobalt break-all mt-1">${sim.sha256}</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 font-[700] text-ink">
+                  <span class="material-symbols-outlined text-cobalt">verified</span>
+                  <span>MATCH 100% CONFIRMED · ZERO BIT CORRUPTION DETECTED</span>
+                </div>
+              </div>
+
+              <div class="flex gap-4 pt-2">
+                <a href="#/transfer/${id}" class="h-11 px-6 rounded-full border-2 border-ink bg-sand text-ink font-[700] uppercase flex items-center justify-center hover:bg-cream">
+                  VIEW LIVE PIPE
+                </a>
+                <button onclick="App.exportCSV()" class="h-11 px-6 rounded-full border-2 border-ink bg-coral text-ink font-[700] uppercase hard-shadow-coral hover:bg-sand">
+                  DOWNLOAD AUDIT CSV
+                </button>
+              </div>
+            </div>
+            <p class="text-[11px] font-mono text-ink-muted text-center">
+              Logs are metadata and reported outcomes, not independent proof of what a device saw or saved.
+            </p>
+          </div>
+        </section>
+      `;
+    },
+
+    // 9. LOGS (#/logs)
+    logs() {
+      return `
+        <!-- Ink Header -->
+        <section class="w-full bg-ink text-cream border-b-2 border-ink py-10">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+              <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-coral">// PERSISTENT TELEMETRY ARCHIVE</span>
+              <h2 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight leading-none mt-1">TRANSMISSION LOGS</h2>
+            </div>
+            <button onclick="App.exportCSV()" class="h-[46px] px-6 rounded-full border-2 border-cream bg-sand text-ink font-mono font-[700] text-[13px] uppercase hover:bg-cream">
+              EXPORT CSV
+            </button>
+          </div>
+        </section>
+
+        <!-- Search & Table -->
+        <section class="w-full bg-cream text-ink py-10 flex-grow">
+          <div class="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-col gap-6">
+            <div class="border-2 border-ink bg-sand p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+              <input type="text" id="logs-filter-input" onkeyup="App.filterLogs()" placeholder="SEARCH LOGS BY FILENAME OR PEER..." class="w-full md:w-80 h-10 border-2 border-ink bg-cream px-3 font-mono text-[12px] font-[700] uppercase focus:ring-0 focus:border-cobalt">
+              <div class="flex flex-wrap items-center gap-2 font-mono text-[12px] font-[700]">
+                <span>FILTER:</span>
+                <button onclick="App.applyLogsType('ALL')" class="px-3 py-1 border-2 border-ink bg-ink text-cream">ALL</button>
+                <button onclick="App.applyLogsType('OUTGOING')" class="px-3 py-1 border-2 border-ink bg-cream text-ink">SENT</button>
+                <button onclick="App.applyLogsType('INCOMING')" class="px-3 py-1 border-2 border-ink bg-cream text-ink">RECEIVED</button>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="border-2 border-ink bg-cream overflow-x-auto">
+              <table id="logs-table" class="w-full text-left border-collapse font-mono text-[13px]">
+                <thead>
+                  <tr class="bg-sand border-b-2 border-ink text-[11px] font-[800] uppercase">
+                    <th class="p-3">SESSION ID</th>
+                    <th class="p-3">DIR</th>
+                    <th class="p-3">PEER</th>
+                    <th class="p-3">PAYLOAD</th>
+                    <th class="p-3">SIZE</th>
+                    <th class="p-3">RATE</th>
+                    <th class="p-3">TIMESTAMP</th>
+                    <th class="p-3">STATUS</th>
+                    <th class="p-3">PURGE</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y-2 divide-ink">
+                  ${PeerLinkStore.transfersHistory.map(row => `
+                    <tr class="hover:bg-sand/40">
+                      <td class="p-3 font-[700]"><a href="#/transfer/${row.id}/details" class="underline hover:text-cobalt">${row.id}</a></td>
+                      <td class="p-3 font-[700] ${row.dir === 'INCOMING' ? 'text-cobalt' : 'text-coral'}">${row.dir}</td>
+                      <td class="p-3 font-[700] uppercase">${row.target}</td>
+                      <td class="p-3 font-[700] truncate max-w-[200px]">${row.file}</td>
+                      <td class="p-3">${row.size}</td>
+                      <td class="p-3 text-cobalt font-[700]">${row.speed}</td>
+                      <td class="p-3 text-[11px] text-ink-muted">${row.time}</td>
+                      <td class="p-3"><span class="px-2 py-0.5 border border-ink text-[11px] font-[800] bg-cream">${row.status}</span></td>
+                      <td class="p-3"><button onclick="App.deleteLog('${row.id}')" class="text-coral font-[700] hover:underline">✕</button></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 10. SETTINGS (#/settings)
+    settings() {
+      return `
+        <section class="w-full bg-cream text-ink py-12 flex-grow">
+          <div class="max-w-[760px] mx-auto px-4 sm:px-8 flex flex-col gap-8">
+            <div class="border-b-2 border-ink pb-4">
+              <span class="text-[12px] font-mono font-[700] uppercase tracking-widest text-ink-muted">// OPERATOR CONFIGURATION</span>
+              <h2 class="text-[40px] md:text-[56px] font-[800] uppercase tracking-tight leading-none mt-1">SETTINGS</h2>
+            </div>
+
+            <!-- Profile Card -->
+            <div class="border-2 border-ink bg-cream p-6 flex flex-col gap-4 hard-shadow-ink">
+              <span class="text-[16px] font-[800] uppercase font-mono">1. NODE PROFILE</span>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-[13px]">
+                <div>
+                  <label class="text-[11px] font-[700] uppercase text-ink-muted block mb-1">LOCAL NODE ID (PERMANENT)</label>
+                  <input type="text" readonly value="${PeerLinkStore.user.id}" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700]">
+                </div>
+                <div>
+                  <label class="text-[11px] font-[700] uppercase text-ink-muted block mb-1">OPERATOR HANDLE</label>
+                  <input type="text" value="${PeerLinkStore.user.handle}" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700] focus:border-cobalt focus:ring-0">
+                </div>
+              </div>
+              <div class="flex items-center gap-4 pt-2">
+                <div class="w-14 h-14 bg-sand border-2 border-ink flex items-center justify-center font-mono font-[800] text-[18px] avatar-hatch">
+                  ${PeerLinkStore.user.avatar}
+                </div>
+                <p class="text-[12px] font-mono text-ink-muted">
+                  Deterministic avatar initial generated from public key. Unforgeable without private key session.
+                </p>
+              </div>
+            </div>
+
+            <!-- Security & Transport -->
+            <div class="border-2 border-ink bg-cream p-6 flex flex-col gap-4 font-mono text-[13px]">
+              <span class="text-[16px] font-[800] uppercase">2. NETWORK TRANSPORT (ICE / STUN)</span>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked class="w-5 h-5 border-2 border-ink text-cobalt focus:ring-0 rounded-none">
+                <span class="font-[700]">ALLOW DIRECT LAN HOST CANDIDATES</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked class="w-5 h-5 border-2 border-ink text-cobalt focus:ring-0 rounded-none">
+                <span class="font-[700]">REFLEXIVE STUN: 185.12.14.99:3478</span>
+              </label>
+              <div class="border-t-2 border-ink pt-3 flex justify-between items-center">
+                <button onclick="App.probeStun()" class="h-9 px-4 rounded-full border-2 border-ink bg-sand font-[700] uppercase hover:bg-cream">PROBE STUN</button>
+                <span id="stun-probe-val" class="text-[11px] text-cobalt font-[700]">ROUND TRIP: 14MS</span>
+              </div>
+            </div>
+
+            <!-- Appearance -->
+            <div class="border-2 border-ink bg-cream p-6 flex flex-col gap-3 font-mono">
+              <span class="text-[16px] font-[800] uppercase">3. POSTER APPEARANCE</span>
+              <div class="flex flex-wrap gap-2 text-[12px] font-[700]">
+                <button onclick="App.setMode('LIGHT')" class="px-5 py-2 border-2 border-ink bg-sand hover:bg-cream">LIGHT (CREAM)</button>
+                <button onclick="App.setMode('DARK')" class="px-5 py-2 border-2 border-ink bg-ink text-cream">DARK (INK)</button>
+                <button onclick="App.setMode('SYSTEM')" class="px-5 py-2 border-2 border-ink bg-sand hover:bg-cream">SYSTEM</button>
+              </div>
+            </div>
+
+            <!-- Blocked -->
+            <div class="border-2 border-ink bg-cream p-6 flex flex-col gap-3 font-mono">
+              <span class="text-[16px] font-[800] uppercase">4. BLOCKED NODES</span>
+              <div class="border border-ink divide-y divide-ink text-[12px]">
+                ${PeerLinkStore.blockedList.map(b => `
+                  <div class="p-3 flex justify-between items-center bg-sand/30">
+                    <span>${b.name} (@${b.handle})</span>
+                    <button onclick="App.unblockPeer('${b.id}')" class="text-cobalt font-[700] underline">UNBLOCK</button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- Purge -->
+            <div class="border-2 border-coral bg-coral/10 p-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div>
+                <span class="text-[16px] font-[800] uppercase text-ink block">PURGE LOCAL WEBRTC LOGS</span>
+                <span class="text-[12px] font-mono text-ink-muted">Erase all cached transfer manifests from browser memory.</span>
+              </div>
+              <button onclick="App.purgeLogs()" class="h-10 px-6 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[700] text-[12px] uppercase hard-shadow-coral hover:bg-sand shrink-0">
+                PURGE EVERYTHING
+              </button>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 11. SIGN IN (#/signin)
+    signin() {
+      return `
+        <section class="w-full bg-cobalt text-cream py-14 flex-grow flex items-center justify-center p-4">
+          <div class="w-full max-w-[840px] border-2 border-ink bg-cream text-ink hard-shadow-ink grid grid-cols-1 md:grid-cols-2">
+            <div class="p-8 bg-ink text-cream flex flex-col justify-between border-b-2 md:border-b-0 md:border-r-2 border-ink">
+              <div>
+                <span class="text-[12px] font-mono font-[700] text-coral uppercase tracking-widest">// AUTHENTICATION</span>
+                <h2 class="text-[44px] font-[800] uppercase tracking-tight text-cream mt-2 leading-none">PEERLINK</h2>
+                <p class="text-[14px] font-mono text-sand mt-4">
+                  Connect using your local operator handle. Credentials never leave your device.
+                </p>
+              </div>
+              <div class="border-t border-cream-hairline pt-4 mt-8 font-mono text-[12px] text-sand">
+                NO NODE YET? <a href="#/signup" class="text-coral font-[700] underline ml-1">INITIALIZE ONE →</a>
+              </div>
+            </div>
+            <div class="p-8 flex flex-col justify-center gap-4 font-mono">
+              <h3 class="text-[20px] font-[800] uppercase">CONNECT NODE</h3>
+              <form onsubmit="App.handleAuth(event, 'signin')" class="flex flex-col gap-3">
+                <div>
+                  <label class="text-[11px] font-[700] uppercase block mb-1">HANDLE OR EMAIL</label>
+                  <input type="text" required placeholder="operator_alpha" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700] focus:border-cobalt focus:ring-0">
+                </div>
+                <div>
+                  <label class="text-[11px] font-[700] uppercase block mb-1">KEY PASSPHRASE</label>
+                  <input type="password" required placeholder="••••••••••••" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700] focus:border-cobalt focus:ring-0">
+                </div>
+                <button type="submit" class="h-11 mt-2 rounded-full border-2 border-ink bg-coral text-ink font-[700] text-[13px] uppercase hard-shadow-coral hover:bg-sand">
+                  CONNECT NODE
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+      `;
+    },
+
+    // 12. SIGN UP (#/signup)
+    signup() {
+      return `
+        <section class="w-full bg-cobalt text-cream py-14 flex-grow flex items-center justify-center p-4">
+          <div class="w-full max-w-[840px] border-2 border-ink bg-cream text-ink hard-shadow-ink grid grid-cols-1 md:grid-cols-2">
+            <div class="p-8 bg-ink text-cream flex flex-col justify-between border-b-2 md:border-b-0 md:border-r-2 border-ink">
+              <div>
+                <span class="text-[12px] font-mono font-[700] text-coral uppercase tracking-widest">// INITIALIZE IDENTITY</span>
+                <h2 class="text-[44px] font-[800] uppercase tracking-tight text-cream mt-2 leading-none">ONE HANDLE</h2>
+                <p class="text-[14px] font-mono text-sand mt-4">
+                  // ONE HANDLE. THAT IS HOW A PEER FINDS YOU. Deterministic WebCrypto keypair generated purely in-browser.
+                </p>
+              </div>
+              <div class="border-t border-cream-hairline pt-4 mt-8 font-mono text-[12px] text-sand">
+                ALREADY PROVISIONED? <a href="#/signin" class="text-coral font-[700] underline ml-1">SIGN IN →</a>
+              </div>
+            </div>
+            <div class="p-8 flex flex-col justify-center gap-4 font-mono">
+              <h3 class="text-[20px] font-[800] uppercase">INITIALIZE NODE</h3>
+              <form onsubmit="App.handleAuth(event, 'signup')" class="flex flex-col gap-3">
+                <div>
+                  <label class="text-[11px] font-[700] uppercase block mb-1">EMAIL</label>
+                  <input type="email" required placeholder="node@domain.internal" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700] focus:border-cobalt focus:ring-0">
+                </div>
+                <div>
+                  <label class="text-[11px] font-[700] uppercase block mb-1">PROPOSED HANDLE</label>
+                  <input type="text" required placeholder="pilot_echo" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700] focus:border-cobalt focus:ring-0">
+                  <span class="text-[10px] text-ink-muted">3-20 chars · letters, numbers, dot, underscore</span>
+                </div>
+                <div>
+                  <label class="text-[11px] font-[700] uppercase block mb-1">PASSPHRASE</label>
+                  <input type="password" required placeholder="Min 8 characters" class="w-full h-11 border-2 border-ink bg-sand px-3 font-[700] focus:border-cobalt focus:ring-0">
+                </div>
+                <button type="submit" class="h-11 mt-2 rounded-full border-2 border-ink bg-coral text-ink font-[700] text-[13px] uppercase hard-shadow-coral hover:bg-sand">
+                  INITIALIZE NODE
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+  };
+
+  const Router = {
+    routes: {},
+    init() {
+      window.addEventListener('hashchange', () => this.handle());
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          if (PeerLinkStore.sim.timer) clearInterval(PeerLinkStore.sim.timer);
+        } else {
+          if (window.location.hash.startsWith('#/transfer/') && !window.location.hash.includes('result') && !window.location.hash.includes('details')) {
+            App.resumeSim();
+          }
+        }
+      });
+      this.handle();
+    },
+    add(path, fn) { this.routes[path] = fn; },
+    handle() {
+      const hash = window.location.hash || '#/';
+      const [path] = hash.split('?');
+      this.updateNav(path);
+
+      if (this.routes[path]) {
+        this.routes[path]();
+        window.scrollTo(0, 0);
+        return;
+      }
+      for (const pattern in this.routes) {
+        if (pattern.includes(':')) {
+          const reg = new RegExp('^' + pattern.replace(/:[^\s/]+/g, '([^/]+)') + '$');
+          const m = path.match(reg);
+          if (m) {
+            this.routes[pattern](m[1]);
+            window.scrollTo(0, 0);
+            return;
+          }
+        }
+      }
+      this.routes['#/']();
+    },
+    updateNav(path) {
+      const links = document.querySelectorAll('#top-nav-links a');
+      links.forEach(l => l.className = "text-cream/80 hover:text-cream pb-1 transition-colors");
+      let active = "";
+      if (path === '#/dashboard' || path.startsWith('#/send')) active = "TRANSFERS";
+      else if (path.startsWith('#/peers')) active = "PEERS";
+      else if (path.startsWith('#/transfer')) active = "TELEMETRY";
+      else if (path.startsWith('#/logs')) active = "LOGS";
+      if (active) {
+        const el = document.querySelector(`[data-nav="${active}"]`);
+        if (el) el.className = "text-coral border-b-2 border-coral pb-1 font-bold";
+      }
+    }
+  };
+
+  const App = {
+    init() {
+      Router.add('#/', () => this.render(Views.landing()));
+      Router.add('#/dashboard', () => this.render(Views.dashboard()));
+      Router.add('#/peers', () => this.render(Views.peers('peers')));
+      Router.add('#/peers/add', () => this.render(Views.addPeer()));
+      Router.add('#/send', () => {
+        const p = new URLSearchParams(window.location.hash.split('?')[1] || '');
+        this.render(Views.send(p.get('peer') || ''));
+      });
+      Router.add('#/transfer/:id', (id) => {
+        this.render(Views.transfer(id));
+        this.startSim(id);
+      });
+      Router.add('#/transfer/:id/result', (id) => this.render(Views.result(id, 'COMPLETE')));
+      Router.add('#/transfer/:id/details', (id) => this.render(Views.details(id)));
+      Router.add('#/logs', () => this.render(Views.logs()));
+      Router.add('#/settings', () => this.render(Views.settings()));
+      Router.add('#/signin', () => this.render(Views.signin()));
+      Router.add('#/signup', () => this.render(Views.signup()));
+      Router.add('#/request/:id', (id) => {
+        this.render(Views.dashboard());
+        this.showRequestModal(id);
+      });
+      Router.init();
+    },
+
+    render(html) {
+      document.getElementById('router-viewport').innerHTML = html;
+    },
+
+    toast(text) {
+      const el = document.getElementById('system-toast');
+      const msg = document.getElementById('toast-text');
+      if (el && msg) {
+        msg.innerText = text;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 3000);
+      }
+    },
+
+    disconnectMesh() {
+      if (confirm("DISCONNECT ALL PEERS: Terminate all WebRTC conduits immediately?")) {
+        this.toast("ALL CONDUITS TERMINATED.");
+      }
+    },
+
+    renderPeersTab(t) {
+      this.render(Views.peers(t));
+    },
+
+    blockPeer(id) {
+      const p = PeerLinkStore.peers.find(x => x.id === id);
+      if (p) {
+        PeerLinkStore.peers = PeerLinkStore.peers.filter(x => x.id !== id);
+        PeerLinkStore.blockedList.push({ id: p.id, name: p.name, handle: p.handle, avatar: p.avatar, reason: "Manual block action" });
+        this.toast(`NODE ${p.name} BLOCKED.`);
+        this.renderPeersTab('peers');
+      }
+    },
+
+    unblockPeer(id) {
+      const b = PeerLinkStore.blockedList.find(x => x.id === id);
+      if (b) {
+        PeerLinkStore.blockedList = PeerLinkStore.blockedList.filter(x => x.id !== id);
+        PeerLinkStore.peers.push({ id: b.id, name: b.name, handle: b.handle, status: "ONLINE", latency: "18ms", avatar: b.avatar, color: "bg-coral text-ink" });
+        this.toast(`NODE ${b.name} RESTORED.`);
+        if (window.location.hash.includes('peers')) this.renderPeersTab('peers');
+        else if (window.location.hash.includes('settings')) Router.handle();
+      }
+    },
+
+    dismissRequest(id) {
+      PeerLinkStore.pendingIncoming = PeerLinkStore.pendingIncoming.filter(x => x.id !== id);
+      const chip = document.getElementById('request-chip');
+      if (chip) chip.style.display = PeerLinkStore.pendingIncoming.length ? 'flex' : 'none';
+      this.toast("STREAM OFFER PURGED.");
+      Router.handle();
+    },
+
+    cancelOutgoing(id) {
+      PeerLinkStore.pendingOutgoing = PeerLinkStore.pendingOutgoing.filter(x => x.id !== id);
+      this.toast("OUTBOUND OFFER CANCELLED.");
+      this.renderPeersTab('outgoing');
+    },
+
+    lookupHandle() {
+      const input = document.getElementById('add-peer-handle-input');
+      const val = input ? input.value.trim() : '';
+      const box = document.getElementById('lookup-result-container');
+      if (!val) { alert("ENTER AN EXACT HANDLE."); return; }
+      box.classList.remove('hidden');
+      box.innerHTML = `<span class="animate-pulse">LOOKING UP STUN CANDIDATES FOR [${val.toUpperCase()}] ...</span>`;
+      setTimeout(() => {
+        box.innerHTML = `
+          <div class="flex items-start justify-between border-b border-ink pb-2">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 bg-coral border-2 border-ink flex items-center justify-center font-[800] text-[18px]">
+                ${val.substring(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <div class="font-[800] text-[16px] uppercase">${val.toUpperCase()}</div>
+                <div class="text-[11px] text-ink-muted">STUN REFLEXIVE CANDIDATE GATHERED</div>
+              </div>
+            </div>
+            <span class="bg-cobalt text-cream px-2 py-0.5 text-[10px] font-[800]">PEER DISCOVERED</span>
+          </div>
+          <div class="text-[12px]">CIPHER: DTLS-SRTP v1.3 · RTT: 18MS</div>
+          <button onclick="App.addPeerToRoster('${val}')" class="h-10 px-6 rounded-full border-2 border-ink bg-coral text-ink font-[700] text-[12px] uppercase hard-shadow-coral hover:bg-cream self-start">
+            SEND REQUEST
+          </button>
+        `;
+      }, 400);
+    },
+
+    addPeerToRoster(val) {
+      PeerLinkStore.peers.push({
+        id: `peer-${Date.now()}`,
+        name: val.toUpperCase(),
+        handle: val.toLowerCase(),
+        status: "ONLINE",
+        latency: "16ms",
+        avatar: val.substring(0, 2).toUpperCase(),
+        color: "bg-sand text-ink"
+      });
+      this.toast(`PEER ${val.toUpperCase()} ADDED.`);
+      window.location.hash = '#/peers';
+    },
+
+    selectSendPeer(id) {
+      document.querySelectorAll('.peer-select-card').forEach(c => c.classList.remove('ring-4', 'ring-cobalt'));
+      const el = document.getElementById(`peer-card-${id}`);
+      if (el) el.classList.add('ring-4', 'ring-cobalt');
+      const p = PeerLinkStore.peers.find(x => x.id === id);
+      if (p) PeerLinkStore.sim.target = p.name;
+    },
+
+    handleSendFile(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const mb = (file.size / (1024 * 1024)).toFixed(2);
+        const slices = Math.ceil(file.size / (512 * 1024));
+        document.getElementById('staged-name').innerText = file.name;
+        document.getElementById('staged-size').innerText = `${mb} MB`;
+        document.getElementById('staged-slices').innerText = `${slices.toLocaleString()} @ 512KB`;
+        PeerLinkStore.sim.filename = file.name;
+        PeerLinkStore.sim.totalMB = parseFloat(mb) || 100;
+        this.toast("ASSET STAGED FOR DIRECT CONDUIT.");
+      }
+    },
+
+    dispatchTransferRequest() {
+      this.toast(`REQUEST SENT TO ${PeerLinkStore.sim.target}. CONDUIT OPENING.`);
+      window.location.hash = `#/transfer/TR-${Math.floor(1000 + Math.random() * 9000)}`;
+    },
+
+    startSim(id) {
+      const sim = PeerLinkStore.sim;
+      sim.id = id;
+      sim.percent = 0;
+      sim.transferredMB = 0;
+      sim.running = true;
+      if (sim.timer) clearInterval(sim.timer);
+
+      sim.timer = setInterval(() => {
+        if (!sim.running) return;
+        sim.percent += 2;
+        if (sim.percent > 100) sim.percent = 100;
+        sim.transferredMB = ((sim.percent / 100) * sim.totalMB).toFixed(1);
+        const remaining = sim.totalMB - sim.transferredMB;
+        const etaSec = Math.max(0, Math.ceil(remaining / sim.speed));
+        sim.eta = `00:${etaSec.toString().padStart(2, '0')}s`;
+
+        const pBar = document.getElementById('transfer-progress-bar');
+        const pDisc = document.getElementById('transfer-disc-percent');
+        const pLabel = document.getElementById('transfer-bytes-label');
+        const mTrans = document.getElementById('tel-transferred');
+        const mPerc = document.getElementById('tel-percent');
+        const mSpeed = document.getElementById('tel-speed');
+        const mEta = document.getElementById('tel-eta');
+
+        if (pBar) pBar.style.width = `${sim.percent}%`;
+        if (pDisc) pDisc.innerText = `${sim.percent}%`;
+        if (pLabel) pLabel.innerText = `${sim.transferredMB} MB / ${sim.totalMB} MB`;
+        if (mTrans) mTrans.innerText = `${sim.transferredMB} MB`;
+        if (mPerc) mPerc.innerText = `${sim.percent}%`;
+        if (mEta) mEta.innerText = sim.eta;
+        if (mSpeed) {
+          const jitter = (42 + (Math.random() * 4 - 2)).toFixed(1);
+          mSpeed.innerText = `${jitter} MB/S`;
+        }
+
+        if (sim.percent >= 100) {
+          clearInterval(sim.timer);
+          sim.running = false;
+          this.toast("TRANSMISSION COMPLETED & VERIFIED.");
+          PeerLinkStore.transfersHistory.unshift({
+            id: sim.id,
+            target: sim.target,
+            dir: "OUTGOING",
+            file: sim.filename,
+            size: `${sim.totalMB} MB`,
+            status: "COMPLETED",
+            hash: "9a2f7c03881efb04",
+            speed: "42.8 MB/S",
+            time: "JUST NOW",
+            chunks: Math.ceil((sim.totalMB * 1024) / 512)
+          });
+          setTimeout(() => {
+            window.location.hash = `#/transfer/${sim.id}/result`;
+          }, 500);
+        }
+      }, 250);
+    },
+
+    resumeSim() {
+      if (!PeerLinkStore.sim.running && PeerLinkStore.sim.percent < 100) {
+        this.startSim(PeerLinkStore.sim.id);
+      }
+    },
+
+    cancelTransfer(id) {
+      if (PeerLinkStore.sim.timer) clearInterval(PeerLinkStore.sim.timer);
+      PeerLinkStore.sim.running = false;
+      this.toast("TRANSMISSION FORCIBLY TERMINATED.");
+      window.location.hash = `#/transfer/${id}/result`;
+    },
+
+    forceCompleteTransfer(id) {
+      PeerLinkStore.sim.percent = 100;
+    },
+
+    filterLogs() {
+      const q = document.getElementById('logs-filter-input').value.toLowerCase();
+      document.querySelectorAll('#logs-table tbody tr').forEach(r => {
+        r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+      });
+    },
+
+    applyLogsType(type) {
+      document.querySelectorAll('#logs-table tbody tr').forEach(r => {
+        if (type === 'ALL') r.style.display = '';
+        else {
+          const d = r.children[1].innerText.trim();
+          r.style.display = (d === type) ? '' : 'none';
+        }
+      });
+    },
+
+    deleteLog(id) {
+      if (confirm(`PURGE RECORD: Delete ${id} from local audit register?`)) {
+        PeerLinkStore.transfersHistory = PeerLinkStore.transfersHistory.filter(x => x.id !== id);
+        this.toast(`SESSION ${id} PURGED.`);
+        Router.handle();
+      }
+    },
+
+    exportCSV() {
+      let csv = "ID,DIRECTION,TARGET,FILE,SIZE,SPEED,STATUS,TIME\n";
+      PeerLinkStore.transfersHistory.forEach(r => {
+        csv += `"${r.id}","${r.dir}","${r.target}","${r.file}","${r.size}","${r.speed}","${r.status}","${r.time}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `peerlink-telemetry-${Date.now()}.csv`;
+      a.click();
+      this.toast("CSV EXPORTED.");
+    },
+
+    showRequestModal(id) {
+      document.getElementById('request-modal').classList.remove('hidden');
+    },
+
+    acceptRequest() {
+      document.getElementById('request-modal').classList.add('hidden');
+      this.toast("CONDUIT ACCEPTED. ALLOCATING MEMORY.");
+      PeerLinkStore.sim.target = "KOFI";
+      PeerLinkStore.sim.filename = "MASTER_STATION_AUDIO_v4.WAV";
+      PeerLinkStore.sim.totalMB = 1420;
+      window.location.hash = '#/transfer/TR-9015';
+    },
+
+    rejectRequest() {
+      document.getElementById('request-modal').classList.add('hidden');
+      this.toast("OFFER DECLINED.");
+      window.location.hash = '#/dashboard';
+    },
+
+    showPairModal() { document.getElementById('pair-modal').classList.remove('hidden'); },
+    closePairModal() { document.getElementById('pair-modal').classList.add('hidden'); },
+    submitPairPin() {
+      const pin = document.getElementById('pin-input').value.trim();
+      this.closePairModal();
+      this.toast(`EPHEMERAL PIN [${pin}] NEGOTIATED.`);
+      window.location.hash = '#/peers';
+    },
+
+    handleAuth(e, mode) {
+      e.preventDefault();
+      this.toast(mode === 'signup' ? "NODE KEY GENERATED." : "NODE AUTHENTICATED.");
+      window.location.hash = '#/dashboard';
+    },
+
+    probeStun() {
+      const el = document.getElementById('stun-probe-val');
+      if (el) {
+        el.innerText = "PROBING...";
+        setTimeout(() => { el.innerText = "ROUND TRIP: 11MS (RTT OPTIMAL)"; }, 300);
+      }
+    },
+
+    setMode(mode) {
+      if (mode === 'DARK') {
+        document.documentElement.classList.add('dark');
+        this.toast("DARK POSTER MODE ACTIVE.");
+      } else {
+        document.documentElement.classList.remove('dark');
+        this.toast("LIGHT POSTER MODE ACTIVE.");
+      }
+    },
+
+    purgeLogs() {
+      PeerLinkStore.transfersHistory = [];
+      this.toast("ALL LOCAL AUDIT REGISTERS PURGED.");
+      Router.handle();
+    }
+  };
+
+  window.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>
