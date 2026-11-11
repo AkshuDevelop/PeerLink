@@ -11,14 +11,22 @@
  */
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTransfer } from '../context/TransferContext';
 
 export const Header: React.FC = () => {
-  const { user } = useAuth();
-  const { pendingOffers, openPairModal, telemetry } = useTransfer();
+  const { user, logout } = useAuth();
+  const { pendingOffers, openPairModal, telemetry, disconnectAllPeers, showToast } = useTransfer();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    disconnectAllPeers();
+    logout();
+    showToast('SESSION TERMINATED. SIGNED OUT.');
+    navigate('/signin');
+  };
 
   const getNavLinkClass = (navKey: string) => {
     let isActive = false;
@@ -112,15 +120,25 @@ export const Header: React.FC = () => {
               </Link>
             )}
 
-            {/* User initials avatar block or Sign In/Up */}
+            {/* User initials avatar block + Logout pill, or Sign In */}
             {user ? (
-              <Link
-                to="/settings"
-                className="w-[34px] sm:w-[40px] h-[34px] sm:h-[40px] bg-sand text-ink border-2 border-ink inline-flex items-center justify-center font-mono font-[800] text-[13px] sm:text-[15px] avatar-hatch hover:border-cream leading-none"
-                title={`Node ${user.handle} Settings`}
-              >
-                {user.avatar || 'PX'}
-              </Link>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Link
+                  to="/settings"
+                  className="w-[34px] sm:w-[40px] h-[34px] sm:h-[40px] bg-sand text-ink border-2 border-ink inline-flex items-center justify-center font-mono font-[800] text-[13px] sm:text-[15px] avatar-hatch hover:border-cream leading-none"
+                  title={`Node @${user.handle} Settings`}
+                >
+                  {user.avatar || 'PX'}
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="h-[34px] sm:h-[40px] px-2 sm:px-3 rounded-full border-2 border-cream/70 text-cream hover:bg-coral hover:text-ink hover:border-ink text-[11px] sm:text-[12px] font-mono font-[700] uppercase transition-colors inline-flex items-center gap-1 leading-none"
+                  title={`Log out of @${user.handle}`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">logout</span>
+                  <span className="hidden sm:inline">LOGOUT</span>
+                </button>
+              </div>
             ) : (
               <Link
                 to="/signin"

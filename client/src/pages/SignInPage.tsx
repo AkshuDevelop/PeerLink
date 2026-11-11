@@ -21,8 +21,8 @@ export const SignInPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGuestLoading, setIsGuestLoading] = useState(false);
 
-  const { login, loginGuest } = useAuth();
-  const { showToast } = useTransfer();
+  const { user, login, loginGuest, logout } = useAuth();
+  const { showToast, disconnectAllPeers } = useTransfer();
   const navigate = useNavigate();
 
   const handleGuest = async () => {
@@ -73,6 +73,35 @@ export const SignInPage: React.FC = () => {
 
         <div className="p-8 flex flex-col justify-center gap-4 font-mono">
           <h3 className="text-[20px] font-[800] uppercase">CONNECT NODE</h3>
+
+          {user && (
+            <div className="border-2 border-ink bg-sand p-3.5 flex flex-col gap-2 hard-shadow-ink text-[12px]">
+              <div className="flex items-center justify-between">
+                <span className="font-[800] text-cobalt flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px]">account_circle</span>
+                  ACTIVE: @{user.handle}
+                </span>
+                <span className="text-[10px] font-[800] bg-coral/30 px-1.5 py-0.5 border border-ink">
+                  {user.handle.startsWith('guest_') ? 'GUEST NODE' : 'SIGNED IN'}
+                </span>
+              </div>
+              <p className="text-[11px] text-ink-muted">
+                You are currently running an active session. Log out to sign into another account.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  disconnectAllPeers();
+                  logout();
+                  showToast('LOGGED OUT OF SESSION. READY TO SIGN IN.');
+                }}
+                className="mt-1 h-8 px-3 rounded-full border-2 border-ink bg-coral text-ink font-[800] text-[11px] uppercase hard-shadow-coral hover:bg-cream transition-colors self-start inline-flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[15px]">logout</span>
+                LOG OUT / SWITCH
+              </button>
+            </div>
+          )}
 
           {error && (
             <div className="border border-coral bg-coral/10 p-3 text-[12px] text-coral font-[700]">

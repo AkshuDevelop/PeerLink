@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTransfer } from '../context/TransferContext';
 import { api } from '../api/httpClient';
@@ -22,8 +23,9 @@ import { probeStun } from '../services/stunProbeService';
 import type { Contact } from '../types/peerlink';
 
 export const SettingsPage: React.FC = () => {
-  const { user, updateProfile } = useAuth();
-  const { showToast } = useTransfer();
+  const { user, updateProfile, logout } = useAuth();
+  const { showToast, disconnectAllPeers } = useTransfer();
+  const navigate = useNavigate();
 
   const [handle, setHandle] = useState(user?.handle || '');
   const [allowLanHost, setAllowLanHost] = useState(user?.allowLanHost ?? true);
@@ -103,6 +105,13 @@ export const SettingsPage: React.FC = () => {
     } catch (err: any) {
       showToast(err.message || 'FAILED TO PURGE LOGS');
     }
+  };
+
+  const handleLogout = () => {
+    disconnectAllPeers();
+    logout();
+    showToast('SESSION TERMINATED. SIGNED OUT.');
+    navigate('/signin');
   };
 
   return (
@@ -265,6 +274,46 @@ export const SettingsPage: React.FC = () => {
           >
             PURGE EVERYTHING
           </button>
+        </div>
+
+        {/* 6. Active Session & Logout */}
+        <div className="border-2 border-ink bg-cream p-6 flex flex-col gap-4 font-mono hard-shadow-ink">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-ink pb-3">
+            <div>
+              <span className="text-[16px] font-[800] uppercase block">
+                6. ACTIVE SESSION & AUTHENTICATION
+              </span>
+              <span className="text-[12px] text-ink-muted">
+                Manage your active device session or switch to another operator account.
+              </span>
+            </div>
+            <span className={`px-2.5 py-1 text-[11px] font-[800] uppercase border border-ink self-start sm:self-auto ${
+              user?.handle.startsWith('guest_') ? 'bg-coral text-ink' : 'bg-cobalt text-cream'
+            }`}>
+              {user?.handle.startsWith('guest_') ? '⚡ GUEST SESSION' : '🔒 AUTHENTICATED'}
+            </span>
+          </div>
+
+          <div className="bg-sand p-4 border border-ink flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div className="text-[13px] font-[800]">
+                OPERATOR: <span className="text-cobalt">@{user?.handle || 'UNKNOWN'}</span>
+              </div>
+              <div className="text-[11px] text-ink-muted mt-0.5">
+                {user?.handle.startsWith('guest_')
+                  ? 'Ephemeral guest session. Log out to register an account or log in with credentials.'
+                  : `Signed in as permanent account${user?.email ? ` (${user.email})` : ''}.`}
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="h-10 px-6 rounded-full border-2 border-ink bg-coral text-ink font-mono font-[800] text-[12px] uppercase hard-shadow-coral hover:bg-sand transition-colors inline-flex items-center gap-2 shrink-0"
+            >
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+              LOG OUT OF SESSION
+            </button>
+          </div>
         </div>
       </div>
     </section>
