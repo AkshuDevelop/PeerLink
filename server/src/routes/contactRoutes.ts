@@ -311,6 +311,50 @@ router.post('/:id/block', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 /**
+ * DELETE /api/contacts/:id — Delete a contact relationship permanently.
+ *
+ * WHAT IT DOES:
+ *   1. Verifies that the authenticated user is a party (requester or recipient).
+ *   2. Deletes the Contact document permanently from MongoDB Atlas.
+ *   3. Emits Socket.IO `contact:updated` ({ contactId, status: 'DELETED' })
+ *      to both users so their UIs update in real time without refreshing.
+ *
+ * CALLED BY: client/src/pages/PeersPage.tsx (remove contact cross button).
+ */
+router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const myId = new mongoose.Types.ObjectId(req.user!.userId);
+  const contact = await Contact.findById(req.params.id);
+
+  if (!contact) {
+    throw new AppError('CONTACT NOT FOUND', 404);
+  }
+
+  // Caller must be either requester or recipient of this contact relationship
+  if (!contact.requester.equals(myId) && !contact.recipient.equals(myId)) {
+    throw new AppError('FORBIDDEN: NOT A PARTY TO THIS CONTACT RELATIONSHIP', 403);
+  }
+
+  const requesterId = contact.requester.toString();
+  const recipientId = contact.recipient.toString();
+  const contactId = contact._id.toString();
+
+  await Contact.findByIdAndDelete(contact._id);
+
+  // Notify both parties over Socket.IO
+  const io = req.app.get('io');
+  if (io) {
+    const payload = {
+      contactId,
+      status: 'DELETED',
+    };
+    io.to(`user:${requesterId}`).emit('contact:updated', payload);
+    io.to(`user:${recipientId}`).emit('contact:updated', payload);
+  }
+
+  res.json({ success: true, message: 'CONTACT_DELETED' });
+}));
+
+/**
  * DELETE /api/contacts/:id/block — Unblock a contact.
  *
  * WHAT IT DOES:

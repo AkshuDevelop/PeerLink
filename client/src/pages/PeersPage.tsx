@@ -16,9 +16,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTransfer } from '../context/TransferContext';
 import { api } from '../api/httpClient';
 import type { Contact } from '../types/peerlink';
+import { getSocket } from '../services/socketService';
 
 export const PeersPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const {
     peerPresenceMap,
     peerLatencyMap,
@@ -51,7 +52,22 @@ export const PeersPage: React.FC = () => {
 
   useEffect(() => {
     fetchContacts();
-  }, [user]);
+
+    // Listen to real-time contact removals / updates from server
+    if (!token) return;
+    const socket = getSocket(token);
+    const handleContactUpdate = (payload: { contactId: string; status: string }) => {
+      if (payload?.status === 'DELETED') {
+        setContacts((prev) => prev.filter((c) => c._id !== payload.contactId));
+      } else {
+        fetchContacts();
+      }
+    };
+    socket.on('contact:updated', handleContactUpdate);
+    return () => {
+      socket.off('contact:updated', handleContactUpdate);
+    };
+  }, [user, token]);
 
   // Derived lists
   const currentUserId = user?.id || user?._id;
@@ -67,6 +83,19 @@ export const PeersPage: React.FC = () => {
       fetchContacts();
     } catch (err: any) {
       showToast(err.message || 'FAILED TO RESPOND');
+    }
+  };
+
+  const handleRemoveContact = async (contactId: string, handle: string) => {
+    if (!window.confirm(`REMOVE CONTACT: Delete @${handle} from your peer directory? This removes the connection from the database.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/contacts/${contactId}`);
+      showToast(`@${handle.toUpperCase()} REMOVED FROM DIRECTORY.`);
+      setContacts((prev) => prev.filter((c) => c._id !== contactId));
+    } catch (err: any) {
+      showToast(err.message || 'FAILED TO REMOVE CONTACT');
     }
   };
 
@@ -173,13 +202,24 @@ export const PeersPage: React.FC = () => {
                           <div className="w-14 h-14 border-2 border-ink bg-coral text-ink flex items-center justify-center font-mono font-[800] text-[18px] avatar-hatch">
                             {peerUser.avatar || 'P'}
                           </div>
-                          <span
-                            className={`px-2 py-0.5 border border-ink text-[11px] font-mono font-[800] ${
-                              presence === 'ONLINE' ? 'bg-cobalt text-cream' : 'bg-sand text-ink'
-                            }`}
-                          >
-                            {presence}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`px-2 py-0.5 border border-ink text-[11px] font-mono font-[800] ${
+                                presence === 'ONLINE' ? 'bg-cobalt text-cream' : 'bg-sand text-ink'
+                              }`}
+                            >
+                              {presence}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveContact(p._id, peerUser.handle)}
+                              className="w-5 h-5 border border-ink bg-sand hover:bg-coral text-ink font-mono font-[800] text-[11px] flex items-center justify-center transition-colors cursor-pointer"
+                              title={`Remove @${peerUser.handle} from contacts`}
+                              aria-label={`Remove @${peerUser.handle} from contacts`}
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <h3 className="text-[18px] font-[800] uppercase truncate">{peerUser.handle}</h3>
@@ -307,9 +347,19 @@ export const PeersPage: React.FC = () => {
                         <span className="text-[11px] text-ink-muted uppercase">OUTGOING TO: @{o.recipient.handle}</span>
                         <div className="font-[800] text-[16px] uppercase">{o.recipient.nodeId}</div>
                       </div>
-                      <span className="h-9 px-4 rounded-full border-2 border-ink bg-sand text-[11px] font-[700] uppercase flex items-center">
-                        PENDING CONSENT
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="h-9 px-4 rounded-full border-2 border-ink bg-sand text-[11px] font-[700] uppercase flex items-center">
+                          PENDING CONSENT
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveContact(o._id, o.recipient.handle)}
+                          className="w-8 h-8 rounded-full border-2 border-ink bg-sand hover:bg-coral text-ink font-mono font-[800] text-[12px] flex items-center justify-center transition-colors cursor-pointer"
+                          title={`Cancel request to @${o.recipient.handle}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
