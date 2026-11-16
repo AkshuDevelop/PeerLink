@@ -91,10 +91,11 @@ export const SignUpPage: React.FC = () => {
               </p>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   disconnectAllPeers();
-                  logout();
-                  showToast('LOGGED OUT OF SESSION. READY TO SIGN UP.');
+                  const isGuest = user.handle.startsWith('guest_') || user.isGuest;
+                  await logout();
+                  showToast(isGuest ? 'GUEST NODE PURGED FROM DATABASE. READY TO SIGN UP.' : 'LOGGED OUT OF SESSION. READY TO SIGN UP.');
                 }}
                 className="mt-1 h-8 px-3 rounded-full border-2 border-ink bg-coral text-ink font-[800] text-[11px] uppercase hard-shadow-coral hover:bg-cream transition-colors self-start inline-flex items-center gap-1.5"
               >

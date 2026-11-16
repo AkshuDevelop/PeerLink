@@ -23,7 +23,7 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<void>;
   register: (email: string, handle: string, password: string) => Promise<void>;
   loginGuest: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateProfile: (patch: { handle?: string; allowLanHost?: boolean }) => Promise<void>;
 }
 
@@ -96,14 +96,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('peerlink_token');
-    localStorage.removeItem('peerlink_guest_pin');
-    disconnectSocket();
-    setToken(null);
-    setUser(null);
-    setGuestPairPin(null);
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      if (token) {
+        // Notify backend. If user was a guest, backend instantly purges the guest
+        // account, contacts, pair PINs, and transfer history from MongoDB to save space.
+        await api.post('/api/auth/logout', {});
+      }
+    } catch (err) {
+      console.warn('[Auth] Server logout notification failed (proceeding with local cleanup):', err);
+    } finally {
+      localStorage.removeItem('peerlink_token');
+      localStorage.removeItem('peerlink_guest_pin');
+      disconnectSocket();
+      setToken(null);
+      setUser(null);
+      setGuestPairPin(null);
+    }
+  }, [token]);
 
   const updateProfile = useCallback(async (patch: { handle?: string; allowLanHost?: boolean }) => {
     const updated = await api.patch<User>('/api/auth/me', patch);

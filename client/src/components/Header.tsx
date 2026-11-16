@@ -21,10 +21,11 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     disconnectAllPeers();
-    logout();
-    showToast('SESSION TERMINATED. SIGNED OUT.');
+    const isGuest = user?.handle.startsWith('guest_') || user?.isGuest;
+    await logout();
+    showToast(isGuest ? 'GUEST NODE PURGED FROM DATABASE.' : 'SESSION TERMINATED. SIGNED OUT.');
     navigate('/signin');
   };
 

@@ -39,3 +39,6 @@ Thumbs.db
 
 # Scratch & temporary test files
 scratch/
+__pycache__/
+*.pyc
+output/

@@ -11,6 +11,7 @@
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix server && npm run build --prefix client",
     "start": "npm run start --prefix server",
+    "clean:guests": "npm run clean:guests --prefix server",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client"
   },
   "devDependencies": {

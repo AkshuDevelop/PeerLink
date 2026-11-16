@@ -32,6 +32,7 @@ import contactRoutes from './routes/contactRoutes';
 import transferRoutes from './routes/transferRoutes';
 import { initSocketManager } from './socket/socketManager';
 import { errorHandler } from './middleware/errorHandler';
+import { purgeAllGuestAccounts } from './services/guestCleanupService';
 
 // Load environment variables from server/.env
 dotenv.config();
@@ -183,6 +184,13 @@ initSocketManager(io);
 async function startServer(): Promise<void> {
   // Connect to MongoDB first (blocks until connection is established)
   await connectDB();
+
+  // Clean up any lingering ephemeral guest accounts on startup
+  try {
+    await purgeAllGuestAccounts(io);
+  } catch (err) {
+    console.warn('[Server] Initial guest cleanup error (non-fatal):', err);
+  }
 
   // Start listening on PORT
   httpServer.listen(PORT, '0.0.0.0', () => {

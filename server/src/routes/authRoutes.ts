@@ -29,6 +29,7 @@ import { User, generateNodeId } from '../models/User';
 import { PairPin, generatePairPin } from '../models/PairPin';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
+import { purgeSingleGuest } from '../services/guestCleanupService';
 
 const router = Router();
 
@@ -353,6 +354,31 @@ router.patch('/me', authMiddleware, asyncHandler(async (req: Request, res: Respo
     allowLanHost: user.allowLanHost,
     stunServer: user.stunServer,
     isGuest: user.isGuest,
+  });
+}));
+
+/**
+ * POST /api/auth/logout — End session and auto-purge guest accounts from MongoDB.
+ *
+ * WHAT IT DOES:
+ *   1. Verifies the user's JWT.
+ *   2. If the user is an ephemeral guest (isGuest === true OR handle starts with "guest_"):
+ *      Instantly deletes their User document, contacts, pair PINs, and transfers
+ *      from MongoDB to save space and keep the database clean.
+ *   3. If the user is a registered operator, leaves their profile and contacts intact.
+ *
+ * CALLED BY: client/src/context/AuthContext.tsx logout()
+ */
+router.post('/logout', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!.userId;
+  const io = req.app.get('io');
+
+  const result = await purgeSingleGuest(userId, io);
+
+  res.json({
+    success: true,
+    message: result.purged ? 'GUEST_PURGED_FROM_DATABASE' : 'SESSION_ENDED',
+    purged: result.purged,
   });
 }));
 
